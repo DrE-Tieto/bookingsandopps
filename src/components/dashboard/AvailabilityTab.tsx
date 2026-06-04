@@ -32,7 +32,8 @@ function availColor(p: number) {
 
 export function AvailabilityTab() {
   const { employees, bookings, opportunities } = useDashboard();
-  const weeks = useMemo(() => buildWeeks(new Date(), WEEKS), []);
+  const [horizonMonths, setHorizonMonths] = useState(6);
+  const weeks = useMemo(() => buildWeeks(new Date(), Math.ceil(horizonMonths * 4.345)), [horizonMonths]);
   const months = useMemo(() => groupByMonth(weeks), [weeks]);
 
   // expanded month keys
