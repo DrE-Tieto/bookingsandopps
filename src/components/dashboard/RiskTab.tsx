@@ -89,7 +89,10 @@ export function RiskTab() {
                 <Tooltip
                   contentStyle={{ fontSize: 12, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
                 />
-                <Line type="monotone" dataKey="teamRisk" stroke="#dc2626" strokeWidth={2} dot={{ r: 3, fill: "#dc2626" }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line type="monotone" dataKey="teamRisk" name="Team" stroke="#dc2626" strokeWidth={2} dot={{ r: 3, fill: "#dc2626" }} />
+                <Line type="monotone" dataKey="department" name="Department" stroke="#2563eb" strokeWidth={2} strokeDasharray="5 4" dot={false} />
+                <Line type="monotone" dataKey="country" name="Country" stroke="#64748b" strokeWidth={2} strokeDasharray="2 3" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
