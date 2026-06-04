@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardProvider } from "@/lib/dashboard-store";
 import { AvailabilityTab } from "@/components/dashboard/AvailabilityTab";
 import { DataTab } from "@/components/dashboard/DataTab";
+import { RiskTab } from "@/components/dashboard/RiskTab";
 import { Toaster } from "@/components/ui/sonner";
 import { Users } from "lucide-react";
 
