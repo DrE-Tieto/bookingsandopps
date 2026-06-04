@@ -32,6 +32,9 @@ interface Ctx {
   employees: Employee[];
   bookings: Booking[];
   opportunities: Opportunity[];
+  addEmployee: (e: Omit<Employee, "id">) => void;
+  updateEmployee: (e: Employee) => void;
+  deleteEmployee: (id: string) => void;
   addBooking: (b: Omit<Booking, "id">) => void;
   updateBooking: (b: Booking) => void;
   deleteBooking: (id: string) => void;
