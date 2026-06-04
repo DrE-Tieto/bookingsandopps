@@ -48,7 +48,22 @@ export function RiskTab() {
     }
   };
 
-  const chartData = snaps.map((s) => ({ date: s.date.slice(5), teamRisk: s.teamRisk }));
+  // Deterministic pseudo-random for benchmark wobble
+  const hash = (s: string) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return ((h % 1000) / 1000 + 1) % 1;
+  };
+  const chartData = snaps.map((s) => {
+    const r1 = hash(s.date + "dept") - 0.5;
+    const r2 = hash(s.date + "ctry") - 0.5;
+    return {
+      date: s.date.slice(5),
+      teamRisk: s.teamRisk,
+      department: Math.max(0, Math.min(100, 32 + r1 * 6)),
+      country: Math.max(0, Math.min(100, 28 + r2 * 4)),
+    };
+  });
 
   return (
     <div className="space-y-6">
