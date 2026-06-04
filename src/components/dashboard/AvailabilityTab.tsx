@@ -193,6 +193,7 @@ export function AvailabilityTab() {
                   </tr>
                   {/* Forecast row */}
                   <tr className="border-b hover:bg-muted/30">
+                    <td className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r" />
                     {visibleCols.map((c) => {
                       const forecastFn = (id: string, w: WeekCol) =>
                         bookingForWeek(id, w) + oppForWeek(id, w);
