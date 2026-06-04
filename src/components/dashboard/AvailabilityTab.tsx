@@ -1,7 +1,8 @@
 import { useMemo, useState, Fragment } from "react";
 import { ChevronDown, ChevronRight, ChevronsLeftRight, ChevronsRightLeft } from "lucide-react";
+import { startOfMonth, endOfMonth, max as dmax, min as dmin, parseISO, format } from "date-fns";
 import { useDashboard, type Employee } from "@/lib/dashboard-store";
-import { buildWeeks, groupByMonth, weekOverlapFraction, weekMonthFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
+import { buildWeeks, groupByMonth, weekOverlapFraction, weekMonthFraction, rangeOverlapFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -55,16 +56,48 @@ export function AvailabilityTab() {
     setExpandedMonths(allExpanded ? new Set() : new Set(months.map((m) => m.key)));
   };
 
-  // visible week cols based on month expansion
+  // visible cols based on month expansion. Split weeks become two partial cols
+  // (W{n}A in the earlier month, W{n}B in the later month) when their parent
+  // month is expanded.
   const visibleCols: Array<
     | { kind: "month"; key: string; label: string; weeks: WeekCol[]; weights: number[] }
-    | { kind: "week"; key: string; week: WeekCol; monthKey: string }
+    | {
+        kind: "week";
+        key: string;
+        week: WeekCol;
+        monthKey: string;
+        label: string;
+        rangeStart: Date;
+        rangeEnd: Date;
+      }
   > = [];
   for (const m of months) {
     if (expandedMonths.has(m.key)) {
+      const mStart = startOfMonth(parseISO(`${m.key}-01`));
+      const mEnd = endOfMonth(mStart);
       for (const w of m.weeks) {
-        if (weekMonthFraction(w, m.key) === 0) continue;
-        visibleCols.push({ kind: "week", key: `${m.key}-${w.isoWeek}`, week: w, monthKey: m.key });
+        const frac = weekMonthFraction(w, m.key);
+        if (frac === 0) continue;
+        const rangeStart = dmax([w.start, mStart]);
+        const rangeEnd = dmin([w.end, mEnd]);
+        const isSplit = frac < 1;
+        // Suffix A if this partial range is the earlier portion of a split week,
+        // B if it's the later portion. The week's monthKey is its Monday's month.
+        const suffix = !isSplit
+          ? ""
+          : format(startOfMonth(w.start), "yyyy-MM") === m.key
+            ? "A"
+            : "B";
+        const label = `${w.label}${suffix}`;
+        visibleCols.push({
+          kind: "week",
+          key: `${m.key}-${w.isoWeek}${suffix}`,
+          week: w,
+          monthKey: m.key,
+          label,
+          rangeStart,
+          rangeEnd,
+        });
       }
     } else {
       const weights = m.weeks.map((w) => weekMonthFraction(w, m.key));
@@ -72,7 +105,7 @@ export function AvailabilityTab() {
     }
   }
 
-  // compute weekly booking % and opportunity weighted % per employee
+  // weekly aggregates (used by collapsed-month summary)
   function bookingForWeek(empId: string, w: WeekCol) {
     let total = 0;
     for (const b of bookings) {
@@ -87,6 +120,26 @@ export function AvailabilityTab() {
     for (const o of opportunities) {
       if (o.employeeId !== empId) continue;
       const frac = weekOverlapFraction(w, o.start, o.end);
+      if (frac > 0) total += (o.workload * o.probability / 100) * frac;
+    }
+    return total;
+  }
+  // partial-week (range) aggregates: normalize by range length so a booking
+  // covering the whole partial range yields the booking's workload %.
+  function bookingForRange(empId: string, rs: Date, re: Date) {
+    let total = 0;
+    for (const b of bookings) {
+      if (b.employeeId !== empId) continue;
+      const frac = rangeOverlapFraction(rs, re, b.start, b.end);
+      if (frac > 0) total += b.workload * frac;
+    }
+    return total;
+  }
+  function oppForRange(empId: string, rs: Date, re: Date) {
+    let total = 0;
+    for (const o of opportunities) {
+      if (o.employeeId !== empId) continue;
+      const frac = rangeOverlapFraction(rs, re, o.start, o.end);
       if (frac > 0) total += (o.workload * o.probability / 100) * frac;
     }
     return total;
@@ -152,7 +205,7 @@ export function AvailabilityTab() {
                       title="Collapse month"
                     >
                       <ChevronDown className="size-3" />
-                      {c.week.label}
+                      {c.label}
                     </button>
                   </th>
                 );
@@ -180,7 +233,7 @@ export function AvailabilityTab() {
                     </td>
                     {visibleCols.map((c) => {
                       const val = c.kind === "week"
-                        ? bookingForWeek(emp.id, c.week)
+                        ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd)
                         : aggregate(emp.id, c.weeks, c.weights, bookingForWeek);
                       return (
                         <td key={`b-${c.key}`} className="border-l p-1">
@@ -201,7 +254,7 @@ export function AvailabilityTab() {
                       const forecastFn = (id: string, w: WeekCol) =>
                         bookingForWeek(id, w) + oppForWeek(id, w);
                       const val = c.kind === "week"
-                        ? forecastFn(emp.id, c.week)
+                        ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd) + oppForRange(emp.id, c.rangeStart, c.rangeEnd)
                         : aggregate(emp.id, c.weeks, c.weights, forecastFn);
                       return (
                         <td key={`f-${c.key}`} className="border-l p-1">
