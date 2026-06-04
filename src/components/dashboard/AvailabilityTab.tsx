@@ -202,7 +202,7 @@ export function AvailabilityTab() {
                         bookingForWeek(id, w) + oppForWeek(id, w);
                       const val = c.kind === "week"
                         ? forecastFn(emp.id, c.week)
-                        : aggregate(emp.id, c.weeks, forecastFn);
+                        : aggregate(emp.id, c.weeks, c.weights, forecastFn);
                       return (
                         <td key={`f-${c.key}`} className="border-l p-1">
                           <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", oppColor(val))}>
