@@ -205,7 +205,7 @@ export function AvailabilityTab() {
                       title="Collapse month"
                     >
                       <ChevronDown className="size-3" />
-                      {c.week.label}
+                      {c.label}
                     </button>
                   </th>
                 );
