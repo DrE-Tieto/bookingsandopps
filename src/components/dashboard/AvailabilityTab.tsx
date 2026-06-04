@@ -233,7 +233,7 @@ export function AvailabilityTab() {
                     </td>
                     {visibleCols.map((c) => {
                       const val = c.kind === "week"
-                        ? bookingForWeek(emp.id, c.week)
+                        ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd)
                         : aggregate(emp.id, c.weeks, c.weights, bookingForWeek);
                       return (
                         <td key={`b-${c.key}`} className="border-l p-1">
