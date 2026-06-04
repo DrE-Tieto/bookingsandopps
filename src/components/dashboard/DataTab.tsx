@@ -12,11 +12,14 @@ import { toast } from "sonner";
 export function DataTab() {
   const {
     employees, bookings, opportunities,
+    addEmployee, updateEmployee, deleteEmployee,
     addBooking, updateBooking, deleteBooking,
     addOpportunity, updateOpportunity, deleteOpportunity,
     convertOpportunity,
   } = useDashboard();
 
+  const [empOpen, setEmpOpen] = useState(false);
+  const [empEdit, setEmpEdit] = useState<{ id: string; name: string; role: string } | null>(null);
   const [bOpen, setBOpen] = useState(false);
   const [bEdit, setBEdit] = useState<Booking | null>(null);
   const [oOpen, setOOpen] = useState(false);
