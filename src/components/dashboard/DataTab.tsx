@@ -5,17 +5,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useDashboard, type Booking, type Opportunity } from "@/lib/dashboard-store";
 import { EntryDialog, type EntryFormValue } from "./EntryDialog";
+import { EmployeeDialog, type EmployeeFormValue } from "./EmployeeDialog";
 import { fmtDate } from "@/lib/week-utils";
 import { toast } from "sonner";
 
 export function DataTab() {
   const {
     employees, bookings, opportunities,
+    addEmployee, updateEmployee, deleteEmployee,
     addBooking, updateBooking, deleteBooking,
     addOpportunity, updateOpportunity, deleteOpportunity,
     convertOpportunity,
   } = useDashboard();
 
+  const [empOpen, setEmpOpen] = useState(false);
+  const [empEdit, setEmpEdit] = useState<{ id: string; name: string; role: string } | null>(null);
   const [bOpen, setBOpen] = useState(false);
   const [bEdit, setBEdit] = useState<Booking | null>(null);
   const [oOpen, setOOpen] = useState(false);
@@ -25,6 +29,47 @@ export function DataTab() {
 
   return (
     <div className="space-y-8">
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-lg font-semibold">Team</h2>
+            <p className="text-sm text-muted-foreground">Manage your consulting team members.</p>
+          </div>
+          <Button onClick={() => { setEmpEdit(null); setEmpOpen(true); }}>
+            <Plus className="size-4 mr-1" /> New employee
+          </Button>
+        </div>
+        <div className="rounded-lg border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead className="w-[100px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {employees.map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell className="font-medium">{e.name}</TableCell>
+                  <TableCell>{e.role}</TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { setEmpEdit(e); setEmpOpen(true); }}>
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => { deleteEmployee(e.id); toast.success("Employee removed"); }}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+
       <section>
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -157,6 +202,21 @@ export function DataTab() {
           } else {
             addOpportunity({ employeeId: v.employeeId, customer: v.customer, project: v.project, workload: v.workload, start: v.start, end: v.end, probability: v.probability ?? 0 });
             toast.success("Opportunity added");
+          }
+        }}
+      />
+      <EmployeeDialog
+        open={empOpen}
+        onOpenChange={setEmpOpen}
+        title={empEdit ? "Edit employee" : "New employee"}
+        initial={empEdit ? { name: empEdit.name, role: empEdit.role } : undefined}
+        onSubmit={(v: EmployeeFormValue) => {
+          if (empEdit) {
+            updateEmployee({ id: empEdit.id, ...v });
+            toast.success("Employee updated");
+          } else {
+            addEmployee(v);
+            toast.success("Employee added");
           }
         }}
       />

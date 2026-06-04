@@ -32,6 +32,9 @@ interface Ctx {
   employees: Employee[];
   bookings: Booking[];
   opportunities: Opportunity[];
+  addEmployee: (e: Omit<Employee, "id">) => void;
+  updateEmployee: (e: Employee) => void;
+  deleteEmployee: (id: string) => void;
   addBooking: (b: Omit<Booking, "id">) => void;
   updateBooking: (b: Booking) => void;
   deleteBooking: (id: string) => void;
@@ -78,7 +81,7 @@ const seedOpps: Opportunity[] = [
 ];
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [employees] = useState<Employee[]>(EMPLOYEES);
+  const [employees, setEmployees] = useState<Employee[]>(EMPLOYEES);
   const [bookings, setBookings] = useState<Booking[]>(seedBookings);
   const [opportunities, setOpportunities] = useState<Opportunity[]>(seedOpps);
 
@@ -86,6 +89,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     employees,
     bookings,
     opportunities,
+    addEmployee: (e) => setEmployees((p) => [...p, { ...e, id: uid() }]),
+    updateEmployee: (e) => setEmployees((p) => p.map((x) => (x.id === e.id ? e : x))),
+    deleteEmployee: (id) => {
+      setEmployees((p) => p.filter((x) => x.id !== id));
+      setBookings((p) => p.filter((x) => x.employeeId !== id));
+      setOpportunities((p) => p.filter((x) => x.employeeId !== id));
+    },
     addBooking: (b) => setBookings((p) => [...p, { ...b, id: uid() }]),
     updateBooking: (b) => setBookings((p) => p.map((x) => (x.id === b.id ? b : x))),
     deleteBooking: (id) => setBookings((p) => p.filter((x) => x.id !== id)),
