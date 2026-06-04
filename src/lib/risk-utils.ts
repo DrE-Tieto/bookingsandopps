@@ -82,7 +82,7 @@ export function computeRisk(
     const partial = (from: number, to: number) => {
       let s = 0;
       const n = to - from + 1;
-      for (let i = from; i <= to; i++) s += monthly[i] * Math.pow(0.9, i);
+      for (let i = from; i <= to; i++) s += monthly[i];
       return s / n;
     };
     return {
