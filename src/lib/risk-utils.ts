@@ -22,12 +22,23 @@ export function monthlyAvailability(
 ): number {
   const mStart = startOfMonth(monthStart);
   const mEnd = endOfMonth(monthStart);
-  const weekStarts = eachWeekOfInterval({ start: mStart, end: mEnd }, { weekStartsOn: 1 });
+  // Include weeks that touch the month; weight each by the fraction of its
+  // days inside the month (so split weeks count as a short week per month).
+  const weekStarts = eachWeekOfInterval(
+    { start: startOfISOWeek(mStart), end: mEnd },
+    { weekStartsOn: 1 },
+  );
   let sum = 0;
-  let count = 0;
+  let totalW = 0;
   for (const ws of weekStarts) {
     const wStart = startOfISOWeek(ws);
     const wEnd = endOfISOWeek(ws);
+    const inStart = dmax([wStart, mStart]);
+    const inEnd = dmin([wEnd, mEnd]);
+    if (inEnd < inStart) continue;
+    const daysInMonth = differenceInCalendarDays(inEnd, inStart) + 1;
+    const w = Math.max(0, Math.min(7, daysInMonth)) / 7;
+    if (w <= 0) continue;
     let booked = 0;
     let opp = 0;
     for (const b of bookings) {
@@ -41,10 +52,10 @@ export function monthlyAvailability(
       if (f > 0) opp += (o.workload * o.probability / 100) * f;
     }
     const avail = Math.max(0, 100 - (booked + opp));
-    sum += avail;
-    count += 1;
+    sum += avail * w;
+    totalW += w;
   }
-  return count ? sum / count : 0;
+  return totalW ? sum / totalW : 0;
 }
 
 export interface EmployeeRisk {
