@@ -83,6 +83,21 @@ export function weekOverlapFraction(week: WeekCol, startISO: string, endISO: str
   return Math.max(0, Math.min(7, days)) / 7;
 }
 
+/** Overlap fraction of [startISO,endISO] with arbitrary date range [rangeStart,rangeEnd].
+ *  Normalized by the length of the range in days, so a booking covering the entire
+ *  range returns 1.0 regardless of whether the range is 2 days or 7. */
+export function rangeOverlapFraction(rangeStart: Date, rangeEnd: Date, startISO: string, endISO: string): number {
+  const s = parseISO(startISO);
+  const e = parseISO(endISO);
+  if (e < rangeStart || s > rangeEnd) return 0;
+  const os = max([s, rangeStart]);
+  const oe = min([e, rangeEnd]);
+  const overlapDays = differenceInCalendarDays(oe, os) + 1;
+  const rangeDays = differenceInCalendarDays(rangeEnd, rangeStart) + 1;
+  if (rangeDays <= 0) return 0;
+  return Math.max(0, overlapDays) / rangeDays;
+}
+
 export function overlaps(week: WeekCol, startISO: string, endISO: string): boolean {
   const s = parseISO(startISO);
   const e = parseISO(endISO);
