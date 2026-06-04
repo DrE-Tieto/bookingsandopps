@@ -1,7 +1,8 @@
 import { useMemo, useState, Fragment } from "react";
 import { ChevronDown, ChevronRight, ChevronsLeftRight, ChevronsRightLeft } from "lucide-react";
+import { startOfMonth, endOfMonth, max as dmax, min as dmin, parseISO, format } from "date-fns";
 import { useDashboard, type Employee } from "@/lib/dashboard-store";
-import { buildWeeks, groupByMonth, weekOverlapFraction, weekMonthFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
+import { buildWeeks, groupByMonth, weekOverlapFraction, weekMonthFraction, rangeOverlapFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
