@@ -181,7 +181,7 @@ export function AvailabilityTab() {
                     {visibleCols.map((c) => {
                       const val = c.kind === "week"
                         ? bookingForWeek(emp.id, c.week)
-                        : aggregate(emp.id, c.weeks, bookingForWeek);
+                        : aggregate(emp.id, c.weeks, c.weights, bookingForWeek);
                       return (
                         <td key={`b-${c.key}`} className="border-l p-1">
                           <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", bookingColor(val))}>
