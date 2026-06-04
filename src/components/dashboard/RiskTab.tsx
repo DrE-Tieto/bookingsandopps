@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpDown } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { useDashboard } from "@/lib/dashboard-store";
 import { computeRisk, teamRisk, ensureWeeklySnapshot, type EmployeeRisk, type Snapshot } from "@/lib/risk-utils";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,22 @@ export function RiskTab() {
     }
   };
 
-  const chartData = snaps.map((s) => ({ date: s.date.slice(5), teamRisk: s.teamRisk }));
+  // Deterministic pseudo-random for benchmark wobble
+  const hash = (s: string) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return ((h % 1000) / 1000 + 1) % 1;
+  };
+  const chartData = snaps.map((s) => {
+    const r1 = hash(s.date + "dept") - 0.5;
+    const r2 = hash(s.date + "ctry") - 0.5;
+    return {
+      date: s.date.slice(5),
+      teamRisk: s.teamRisk,
+      department: Math.max(0, Math.min(100, 32 + r1 * 6)),
+      country: Math.max(0, Math.min(100, 28 + r2 * 4)),
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -74,7 +89,10 @@ export function RiskTab() {
                 <Tooltip
                   contentStyle={{ fontSize: 12, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
                 />
-                <Line type="monotone" dataKey="teamRisk" stroke="#dc2626" strokeWidth={2} dot={{ r: 3, fill: "#dc2626" }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line type="monotone" dataKey="teamRisk" name="Team" stroke="#dc2626" strokeWidth={2} dot={{ r: 3, fill: "#dc2626" }} />
+                <Line type="monotone" dataKey="department" name="Department" stroke="#2563eb" strokeWidth={2} strokeDasharray="5 4" dot={false} />
+                <Line type="monotone" dataKey="country" name="Country" stroke="#64748b" strokeWidth={2} strokeDasharray="2 3" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
