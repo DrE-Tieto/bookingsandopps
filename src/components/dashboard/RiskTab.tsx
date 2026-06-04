@@ -60,8 +60,8 @@ export function RiskTab() {
     return {
       date: s.date.slice(5),
       teamRisk: s.teamRisk,
-      department: Math.max(0, Math.min(100, 32 + r1 * 6)),
-      country: Math.max(0, Math.min(100, 28 + r2 * 4)),
+      department: 450 + r1 * 120,
+      country: 420 + r2 * 100,
     };
   });
 
