@@ -254,7 +254,7 @@ export function AvailabilityTab() {
                       const forecastFn = (id: string, w: WeekCol) =>
                         bookingForWeek(id, w) + oppForWeek(id, w);
                       const val = c.kind === "week"
-                        ? forecastFn(emp.id, c.week)
+                        ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd) + oppForRange(emp.id, c.rangeStart, c.rangeEnd)
                         : aggregate(emp.id, c.weeks, c.weights, forecastFn);
                       return (
                         <td key={`f-${c.key}`} className="border-l p-1">
