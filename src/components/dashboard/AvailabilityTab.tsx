@@ -169,7 +169,6 @@ export function AvailabilityTab() {
                   {/* Booking row */}
                   <tr className="border-b hover:bg-muted/30">
                     <td
-                      rowSpan={3}
                       className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r cursor-pointer"
                       onClick={() => toggleEmployee(emp.id)}
                     >
@@ -197,39 +196,21 @@ export function AvailabilityTab() {
                       );
                     })}
                   </tr>
-                  {/* Opportunity row */}
+                  {/* Forecast row */}
                   <tr className="border-b hover:bg-muted/30">
                     {visibleCols.map((c) => {
+                      const forecastFn = (id: string, w: WeekCol) =>
+                        bookingForWeek(id, w) + oppForWeek(id, w);
                       const val = c.kind === "week"
-                        ? oppForWeek(emp.id, c.week)
-                        : aggregate(emp.id, c.weeks, oppForWeek);
+                        ? forecastFn(emp.id, c.week)
+                        : aggregate(emp.id, c.weeks, forecastFn);
                       return (
-                        <td key={`o-${c.key}`} className="border-l p-1">
+                        <td key={`f-${c.key}`} className="border-l p-1">
                           <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", oppColor(val))}>
                             {Math.round(val)}%
                           </div>
                           {c.kind === "week" ? null : (
-                            <div className="text-[10px] text-muted-foreground text-center mt-0.5">Opportunity</div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  {/* Availability row */}
-                  <tr className="border-b hover:bg-muted/30">
-                    {visibleCols.map((c) => {
-                      const availFn = (id: string, w: WeekCol) =>
-                        Math.max(0, 100 - (bookingForWeek(id, w) + oppForWeek(id, w)));
-                      const val = c.kind === "week"
-                        ? availFn(emp.id, c.week)
-                        : aggregate(emp.id, c.weeks, availFn);
-                      return (
-                        <td key={`a-${c.key}`} className="border-l p-1">
-                          <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", availColor(val))}>
-                            {Math.round(val)}%
-                          </div>
-                          {c.kind === "week" ? null : (
-                            <div className="text-[10px] text-muted-foreground text-center mt-0.5">Available</div>
+                            <div className="text-[10px] text-muted-foreground text-center mt-0.5">Forecast</div>
                           )}
                         </td>
                       );
