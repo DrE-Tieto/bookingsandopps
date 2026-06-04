@@ -231,7 +231,7 @@ export function AvailabilityTab() {
                     {visibleCols.map((c) => {
                       const val = c.kind === "week"
                         ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd)
-                        : aggregate(emp.id, c.weeks, c.weights, bookingForWeek);
+                        : aggregateParts(emp.id, c.parts, bookingForRange);
                       return (
                         <td key={`b-${c.key}`} className="border-l p-1">
                           <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", bookingColor(val))}>
@@ -248,11 +248,11 @@ export function AvailabilityTab() {
                   <tr className="border-b hover:bg-muted/30">
                     <td className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r" />
                     {visibleCols.map((c) => {
-                      const forecastFn = (id: string, w: WeekCol) =>
-                        bookingForWeek(id, w) + oppForWeek(id, w);
+                      const forecastFn = (id: string, rs: Date, re: Date) =>
+                        bookingForRange(id, rs, re) + oppForRange(id, rs, re);
                       const val = c.kind === "week"
                         ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd) + oppForRange(emp.id, c.rangeStart, c.rangeEnd)
-                        : aggregate(emp.id, c.weeks, c.weights, forecastFn);
+                        : aggregateParts(emp.id, c.parts, forecastFn);
                       return (
                         <td key={`f-${c.key}`} className="border-l p-1">
                           <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", oppColor(val))}>
