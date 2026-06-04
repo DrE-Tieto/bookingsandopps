@@ -24,11 +24,6 @@ function oppColor(p: number) {
   if (p >= 50) return "bg-amber-500/20 text-amber-700 dark:text-amber-300";
   return "bg-red-500/20 text-red-700 dark:text-red-300";
 }
-function availColor(p: number) {
-  if (p >= 50) return "bg-red-500/20 text-red-700 dark:text-red-300";
-  if (p >= 20) return "bg-amber-500/20 text-amber-700 dark:text-amber-300";
-  return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300";
-}
 
 export function AvailabilityTab() {
   const { employees, bookings, opportunities } = useDashboard();
@@ -169,7 +164,6 @@ export function AvailabilityTab() {
                   {/* Booking row */}
                   <tr className="border-b hover:bg-muted/30">
                     <td
-                      rowSpan={3}
                       className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r cursor-pointer"
                       onClick={() => toggleEmployee(emp.id)}
                     >
@@ -197,39 +191,21 @@ export function AvailabilityTab() {
                       );
                     })}
                   </tr>
-                  {/* Opportunity row */}
+                  {/* Forecast row */}
                   <tr className="border-b hover:bg-muted/30">
                     {visibleCols.map((c) => {
+                      const forecastFn = (id: string, w: WeekCol) =>
+                        bookingForWeek(id, w) + oppForWeek(id, w);
                       const val = c.kind === "week"
-                        ? oppForWeek(emp.id, c.week)
-                        : aggregate(emp.id, c.weeks, oppForWeek);
+                        ? forecastFn(emp.id, c.week)
+                        : aggregate(emp.id, c.weeks, forecastFn);
                       return (
-                        <td key={`o-${c.key}`} className="border-l p-1">
+                        <td key={`f-${c.key}`} className="border-l p-1">
                           <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", oppColor(val))}>
                             {Math.round(val)}%
                           </div>
                           {c.kind === "week" ? null : (
-                            <div className="text-[10px] text-muted-foreground text-center mt-0.5">Opportunity</div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  {/* Availability row */}
-                  <tr className="border-b hover:bg-muted/30">
-                    {visibleCols.map((c) => {
-                      const availFn = (id: string, w: WeekCol) =>
-                        Math.max(0, 100 - (bookingForWeek(id, w) + oppForWeek(id, w)));
-                      const val = c.kind === "week"
-                        ? availFn(emp.id, c.week)
-                        : aggregate(emp.id, c.weeks, availFn);
-                      return (
-                        <td key={`a-${c.key}`} className="border-l p-1">
-                          <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", availColor(val))}>
-                            {Math.round(val)}%
-                          </div>
-                          {c.kind === "week" ? null : (
-                            <div className="text-[10px] text-muted-foreground text-center mt-0.5">Available</div>
+                            <div className="text-[10px] text-muted-foreground text-center mt-0.5">Forecast</div>
                           )}
                         </td>
                       );
@@ -322,7 +298,7 @@ function Legend() {
         <Swatch className="bg-emerald-500/30" /> ≥90%
       </div>
       <div className="flex items-center gap-2">
-        <span className="font-medium text-foreground">Opportunities (Σ workload × probability):</span>
+        <span className="font-medium text-foreground">Forecast (bookings + Σ opp × probability):</span>
         <Swatch className="bg-red-500/30" /> &lt;50%
         <Swatch className="bg-amber-500/30" /> 50–100%
         <Swatch className="bg-emerald-500/30" /> &gt;100%
