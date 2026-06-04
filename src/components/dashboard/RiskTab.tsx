@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpDown } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { useDashboard } from "@/lib/dashboard-store";
 import { computeRisk, teamRisk, ensureWeeklySnapshot, type EmployeeRisk, type Snapshot } from "@/lib/risk-utils";
 import { Button } from "@/components/ui/button";
