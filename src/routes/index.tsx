@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardProvider } from "@/lib/dashboard-store";
 import { AvailabilityTab } from "@/components/dashboard/AvailabilityTab";
 import { DataTab } from "@/components/dashboard/DataTab";
+import { RiskTab } from "@/components/dashboard/RiskTab";
 import { Toaster } from "@/components/ui/sonner";
 import { Users } from "lucide-react";
 
@@ -36,12 +37,16 @@ function Index() {
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="data">Bookings & Opportunities</TabsTrigger>
+              <TabsTrigger value="risk">Risk</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-4">
               <AvailabilityTab />
             </TabsContent>
             <TabsContent value="data" className="mt-4">
               <DataTab />
+            </TabsContent>
+            <TabsContent value="risk" className="mt-4">
+              <RiskTab />
             </TabsContent>
           </Tabs>
         </main>
