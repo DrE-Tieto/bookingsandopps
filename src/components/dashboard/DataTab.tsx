@@ -205,6 +205,21 @@ export function DataTab() {
           }
         }}
       />
+      <EmployeeDialog
+        open={empOpen}
+        onOpenChange={setEmpOpen}
+        title={empEdit ? "Edit employee" : "New employee"}
+        initial={empEdit ? { name: empEdit.name, role: empEdit.role } : undefined}
+        onSubmit={(v: EmployeeFormValue) => {
+          if (empEdit) {
+            updateEmployee({ id: empEdit.id, ...v });
+            toast.success("Employee updated");
+          } else {
+            addEmployee(v);
+            toast.success("Employee added");
+          }
+        }}
+      />
     </div>
   );
 }
