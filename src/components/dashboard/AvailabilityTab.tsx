@@ -3,9 +3,16 @@ import { ChevronDown, ChevronRight, ChevronsLeftRight, ChevronsRightLeft } from 
 import { useDashboard, type Employee } from "@/lib/dashboard-store";
 import { buildWeeks, groupByMonth, weekOverlapFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-const WEEKS = 26; // ~6 months
+const HORIZON_OPTIONS = [
+  { label: "3 months", months: 3 },
+  { label: "6 months", months: 6 },
+  { label: "12 months", months: 12 },
+  { label: "18 months", months: 18 },
+  { label: "24 months", months: 24 },
+];
 
 function bookingColor(p: number) {
   if (p >= 90) return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300";
