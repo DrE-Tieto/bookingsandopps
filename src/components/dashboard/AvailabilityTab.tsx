@@ -298,7 +298,7 @@ function Legend() {
         <Swatch className="bg-emerald-500/30" /> ≥90%
       </div>
       <div className="flex items-center gap-2">
-        <span className="font-medium text-foreground">Opportunities (Σ workload × probability):</span>
+        <span className="font-medium text-foreground">Forecast (bookings + Σ opp × probability):</span>
         <Swatch className="bg-red-500/30" /> &lt;50%
         <Swatch className="bg-amber-500/30" /> 50–100%
         <Swatch className="bg-emerald-500/30" /> &gt;100%
