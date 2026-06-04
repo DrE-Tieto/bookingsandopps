@@ -3,9 +3,16 @@ import { ChevronDown, ChevronRight, ChevronsLeftRight, ChevronsRightLeft } from 
 import { useDashboard, type Employee } from "@/lib/dashboard-store";
 import { buildWeeks, groupByMonth, weekOverlapFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-const WEEKS = 26; // ~6 months
+const HORIZON_OPTIONS = [
+  { label: "3 months", months: 3 },
+  { label: "6 months", months: 6 },
+  { label: "12 months", months: 12 },
+  { label: "18 months", months: 18 },
+  { label: "24 months", months: 24 },
+];
 
 function bookingColor(p: number) {
   if (p >= 90) return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300";
@@ -25,7 +32,8 @@ function availColor(p: number) {
 
 export function AvailabilityTab() {
   const { employees, bookings, opportunities } = useDashboard();
-  const weeks = useMemo(() => buildWeeks(new Date(), WEEKS), []);
+  const [horizonMonths, setHorizonMonths] = useState(6);
+  const weeks = useMemo(() => buildWeeks(new Date(), Math.ceil(horizonMonths * 4.345)), [horizonMonths]);
   const months = useMemo(() => groupByMonth(weeks), [weeks]);
 
   // expanded month keys
@@ -94,17 +102,29 @@ export function AvailabilityTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold">Team availability</h2>
           <p className="text-sm text-muted-foreground">
-            6-month forward view. Click a month to expand into ISO weeks. Click an employee to see project details.
+            Forward view. Click a month to expand into ISO weeks. Click an employee to see project details.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={toggleAll}>
-          {allExpanded ? <ChevronsRightLeft className="size-4 mr-1" /> : <ChevronsLeftRight className="size-4 mr-1" />}
-          {allExpanded ? "Collapse all" : "Expand all weeks"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={String(horizonMonths)} onValueChange={(v) => setHorizonMonths(Number(v))}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {HORIZON_OPTIONS.map((o) => (
+                <SelectItem key={o.months} value={String(o.months)}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={toggleAll}>
+            {allExpanded ? <ChevronsRightLeft className="size-4 mr-1" /> : <ChevronsLeftRight className="size-4 mr-1" />}
+            {allExpanded ? "Collapse all" : "Expand all weeks"}
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border bg-card overflow-auto">
