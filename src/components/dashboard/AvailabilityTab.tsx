@@ -2,10 +2,17 @@ import { useMemo, useState, Fragment } from "react";
 import { ChevronDown, ChevronRight, ChevronsLeftRight, ChevronsRightLeft } from "lucide-react";
 import { startOfMonth, endOfMonth, max as dmax, min as dmin, parseISO, format } from "date-fns";
 import { useDashboard, type Employee } from "@/lib/dashboard-store";
-import { buildWeeks, groupByMonth, weekOverlapFraction, weekMonthFraction, rangeOverlapFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
+import { buildWeeks, groupByMonth, weekMonthFraction, rangeOverlapFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+type MonthPart = {
+  week: WeekCol;
+  rangeStart: Date;
+  rangeEnd: Date;
+  weight: number;
+};
 
 const HORIZON_OPTIONS = [
   { label: "3 months", months: 3 },
@@ -60,7 +67,7 @@ export function AvailabilityTab() {
   // (W{n}A in the earlier month, W{n}B in the later month) when their parent
   // month is expanded.
   const visibleCols: Array<
-    | { kind: "month"; key: string; label: string; weeks: WeekCol[]; weights: number[] }
+    | { kind: "month"; key: string; label: string; parts: MonthPart[] }
     | {
         kind: "week";
         key: string;
@@ -72,15 +79,24 @@ export function AvailabilityTab() {
       }
   > = [];
   for (const m of months) {
+    const mStart = startOfMonth(parseISO(`${m.key}-01`));
+    const mEnd = endOfMonth(mStart);
+    const parts = m.weeks
+      .map((w) => {
+        const weight = weekMonthFraction(w, m.key);
+        return {
+          week: w,
+          rangeStart: dmax([w.start, mStart]),
+          rangeEnd: dmin([w.end, mEnd]),
+          weight,
+        };
+      })
+      .filter((p) => p.weight > 0);
+
     if (expandedMonths.has(m.key)) {
-      const mStart = startOfMonth(parseISO(`${m.key}-01`));
-      const mEnd = endOfMonth(mStart);
-      for (const w of m.weeks) {
-        const frac = weekMonthFraction(w, m.key);
-        if (frac === 0) continue;
-        const rangeStart = dmax([w.start, mStart]);
-        const rangeEnd = dmin([w.end, mEnd]);
-        const isSplit = frac < 1;
+      for (const part of parts) {
+        const { week: w, rangeStart, rangeEnd, weight } = part;
+        const isSplit = weight < 1;
         // Suffix A if this partial range is the earlier portion of a split week,
         // B if it's the later portion. The week's monthKey is its Monday's month.
         const suffix = !isSplit
@@ -100,30 +116,10 @@ export function AvailabilityTab() {
         });
       }
     } else {
-      const weights = m.weeks.map((w) => weekMonthFraction(w, m.key));
-      visibleCols.push({ kind: "month", key: m.key, label: m.label, weeks: m.weeks, weights });
+      visibleCols.push({ kind: "month", key: m.key, label: m.label, parts });
     }
   }
 
-  // weekly aggregates (used by collapsed-month summary)
-  function bookingForWeek(empId: string, w: WeekCol) {
-    let total = 0;
-    for (const b of bookings) {
-      if (b.employeeId !== empId) continue;
-      const frac = weekOverlapFraction(w, b.start, b.end);
-      if (frac > 0) total += b.workload * frac;
-    }
-    return total;
-  }
-  function oppForWeek(empId: string, w: WeekCol) {
-    let total = 0;
-    for (const o of opportunities) {
-      if (o.employeeId !== empId) continue;
-      const frac = weekOverlapFraction(w, o.start, o.end);
-      if (frac > 0) total += (o.workload * o.probability / 100) * frac;
-    }
-    return total;
-  }
   // partial-week (range) aggregates: normalize by range length so a booking
   // covering the whole partial range yields the booking's workload %.
   function bookingForRange(empId: string, rs: Date, re: Date) {
@@ -144,10 +140,11 @@ export function AvailabilityTab() {
     }
     return total;
   }
-  function aggregate(empId: string, weeks: WeekCol[], weights: number[], fn: (id: string, w: WeekCol) => number) {
-    const totalW = weights.reduce((a, b) => a + b, 0);
+
+  function aggregateParts(empId: string, parts: MonthPart[], fn: (id: string, rs: Date, re: Date) => number) {
+    const totalW = parts.reduce((acc, part) => acc + part.weight, 0);
     if (totalW === 0) return 0;
-    const sum = weeks.reduce((acc, w, i) => acc + fn(empId, w) * weights[i], 0);
+    const sum = parts.reduce((acc, part) => acc + fn(empId, part.rangeStart, part.rangeEnd) * part.weight, 0);
     return sum / totalW;
   }
 
