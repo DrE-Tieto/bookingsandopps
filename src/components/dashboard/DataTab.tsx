@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useDashboard, type Booking, type Opportunity } from "@/lib/dashboard-store";
 import { EntryDialog, type EntryFormValue } from "./EntryDialog";
+import { EmployeeDialog, type EmployeeFormValue } from "./EmployeeDialog";
 import { fmtDate } from "@/lib/week-utils";
 import { toast } from "sonner";
 
