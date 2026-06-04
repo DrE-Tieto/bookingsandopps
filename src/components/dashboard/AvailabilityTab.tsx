@@ -102,17 +102,29 @@ export function AvailabilityTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold">Team availability</h2>
           <p className="text-sm text-muted-foreground">
-            6-month forward view. Click a month to expand into ISO weeks. Click an employee to see project details.
+            Forward view. Click a month to expand into ISO weeks. Click an employee to see project details.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={toggleAll}>
-          {allExpanded ? <ChevronsRightLeft className="size-4 mr-1" /> : <ChevronsLeftRight className="size-4 mr-1" />}
-          {allExpanded ? "Collapse all" : "Expand all weeks"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={String(horizonMonths)} onValueChange={(v) => setHorizonMonths(Number(v))}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {HORIZON_OPTIONS.map((o) => (
+                <SelectItem key={o.months} value={String(o.months)}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={toggleAll}>
+            {allExpanded ? <ChevronsRightLeft className="size-4 mr-1" /> : <ChevronsLeftRight className="size-4 mr-1" />}
+            {allExpanded ? "Collapse all" : "Expand all weeks"}
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border bg-card overflow-auto">
