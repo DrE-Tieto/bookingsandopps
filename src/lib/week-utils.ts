@@ -43,10 +43,33 @@ export function buildWeeks(from: Date, weeksCount: number): WeekCol[] {
 export function groupByMonth(weeks: WeekCol[]) {
   const map = new Map<string, { label: string; weeks: WeekCol[] }>();
   for (const w of weeks) {
-    if (!map.has(w.monthKey)) map.set(w.monthKey, { label: w.monthLabel, weeks: [] });
-    map.get(w.monthKey)!.weeks.push(w);
+    // Assign each week to every calendar month it touches
+    const monthsTouched = new Set<string>();
+    monthsTouched.add(w.monthKey);
+    const endMonthKey = format(startOfMonth(w.end), "yyyy-MM");
+    monthsTouched.add(endMonthKey);
+    for (const mk of monthsTouched) {
+      if (!map.has(mk)) {
+        const mLabel = mk === w.monthKey ? w.monthLabel : format(w.end, "MMM yyyy");
+        map.set(mk, { label: mLabel, weeks: [] });
+      }
+      map.get(mk)!.weeks.push(w);
+    }
   }
-  return Array.from(map.entries()).map(([key, v]) => ({ key, ...v }));
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, v]) => ({ key, ...v }));
+}
+
+/** Fraction (0..1) of a week's 7 days that fall within the given calendar month "yyyy-MM" */
+export function weekMonthFraction(week: WeekCol, monthKey: string): number {
+  let days = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(week.start);
+    d.setDate(d.getDate() + i);
+    if (format(startOfMonth(d), "yyyy-MM") === monthKey) days++;
+  }
+  return days / 7;
 }
 
 /** Overlap fraction of [start,end] with the week (0..1 based on days/7) */

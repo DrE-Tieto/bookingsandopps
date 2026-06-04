@@ -1,7 +1,7 @@
 import { useMemo, useState, Fragment } from "react";
 import { ChevronDown, ChevronRight, ChevronsLeftRight, ChevronsRightLeft } from "lucide-react";
 import { useDashboard, type Employee } from "@/lib/dashboard-store";
-import { buildWeeks, groupByMonth, weekOverlapFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
+import { buildWeeks, groupByMonth, weekOverlapFraction, weekMonthFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -57,16 +57,18 @@ export function AvailabilityTab() {
 
   // visible week cols based on month expansion
   const visibleCols: Array<
-    | { kind: "month"; key: string; label: string; weeks: WeekCol[] }
+    | { kind: "month"; key: string; label: string; weeks: WeekCol[]; weights: number[] }
     | { kind: "week"; key: string; week: WeekCol; monthKey: string }
   > = [];
   for (const m of months) {
     if (expandedMonths.has(m.key)) {
       for (const w of m.weeks) {
+        if (weekMonthFraction(w, m.key) === 0) continue;
         visibleCols.push({ kind: "week", key: `${m.key}-${w.isoWeek}`, week: w, monthKey: m.key });
       }
     } else {
-      visibleCols.push({ kind: "month", key: m.key, label: m.label, weeks: m.weeks });
+      const weights = m.weeks.map((w) => weekMonthFraction(w, m.key));
+      visibleCols.push({ kind: "month", key: m.key, label: m.label, weeks: m.weeks, weights });
     }
   }
 
@@ -89,10 +91,11 @@ export function AvailabilityTab() {
     }
     return total;
   }
-  function aggregate(empId: string, weeks: WeekCol[], fn: (id: string, w: WeekCol) => number) {
-    if (weeks.length === 0) return 0;
-    const sum = weeks.reduce((acc, w) => acc + fn(empId, w), 0);
-    return sum / weeks.length;
+  function aggregate(empId: string, weeks: WeekCol[], weights: number[], fn: (id: string, w: WeekCol) => number) {
+    const totalW = weights.reduce((a, b) => a + b, 0);
+    if (totalW === 0) return 0;
+    const sum = weeks.reduce((acc, w, i) => acc + fn(empId, w) * weights[i], 0);
+    return sum / totalW;
   }
 
   return (
@@ -178,7 +181,7 @@ export function AvailabilityTab() {
                     {visibleCols.map((c) => {
                       const val = c.kind === "week"
                         ? bookingForWeek(emp.id, c.week)
-                        : aggregate(emp.id, c.weeks, bookingForWeek);
+                        : aggregate(emp.id, c.weeks, c.weights, bookingForWeek);
                       return (
                         <td key={`b-${c.key}`} className="border-l p-1">
                           <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", bookingColor(val))}>
@@ -199,7 +202,7 @@ export function AvailabilityTab() {
                         bookingForWeek(id, w) + oppForWeek(id, w);
                       const val = c.kind === "week"
                         ? forecastFn(emp.id, c.week)
-                        : aggregate(emp.id, c.weeks, forecastFn);
+                        : aggregate(emp.id, c.weeks, c.weights, forecastFn);
                       return (
                         <td key={`f-${c.key}`} className="border-l p-1">
                           <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", oppColor(val))}>
