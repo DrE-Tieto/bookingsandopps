@@ -65,24 +65,9 @@ function LoginPage() {
         </div>
 
         <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
-          <h2 className="text-base font-medium">
-            {mode === "signin" ? "Sign in" : "Create account"}
-          </h2>
+          <h2 className="text-base font-medium">Sign in</h2>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="fullName">Full name</Label>
-                <Input
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Alice Johansson"
-                  required
-                />
-              </div>
-            )}
-
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -107,42 +92,14 @@ function LoginPage() {
               />
             </div>
 
-            {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label>Team / Role</Label>
-                <Select value={teamValue} onValueChange={setTeamValue} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TEAMS.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
 
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
+              {submitting ? "Please wait..." : "Sign in"}
             </Button>
           </form>
-
-          <div className="text-center">
-            <button
-              type="button"
-              className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
-              onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(null); }}
-            >
-              {mode === "signin" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-            </button>
-          </div>
         </div>
       </div>
     </div>
