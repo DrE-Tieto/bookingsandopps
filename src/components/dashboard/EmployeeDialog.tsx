@@ -97,7 +97,14 @@ export function EmployeeDialog({ open, onOpenChange, title, initial, onSubmit }:
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => { onSubmit(v); onOpenChange(false); }}>Save</Button>
+          <Button onClick={() => {
+            onSubmit({
+              ...v,
+              availableFrom: v.availableFrom || undefined,
+              availableUntil: v.availableUntil || undefined,
+            });
+            onOpenChange(false);
+          }}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
