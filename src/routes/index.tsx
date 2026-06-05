@@ -46,12 +46,12 @@ function InnerIndex() {
           </div>
           <div className="flex items-center gap-3">
             {profile?.role === "department_head" && (
-              <Select value={selectedTeamId ?? ""} onValueChange={(v) => setSelectedTeamId(v || null)}>
+              <Select value={selectedTeamId ?? "all"} onValueChange={(v) => setSelectedTeamId(v === "all" ? null : v)}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="All Teams (Department)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Teams (Department)</SelectItem>
+                  <SelectItem value="all">All Teams (Department)</SelectItem>
                   {teams.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.name}
