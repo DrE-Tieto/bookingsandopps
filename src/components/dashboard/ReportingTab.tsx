@@ -1,10 +1,29 @@
 import { useMemo, useState } from "react";
-import { startOfMonth, endOfMonth, subMonths, format, parseISO, isAfter, isBefore } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, format, parseISO, isAfter, isBefore, eachDayOfInterval, getDay, max as dmax, min as dmin } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useDashboard, type Employee, type Booking } from "@/lib/dashboard-store";
-import { rangeOverlapFraction } from "@/lib/week-utils";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+/** Count working days (Mon–Fri) in a date range, inclusive. */
+function workingDaysInRange(rs: Date, re: Date): number {
+  if (re < rs) return 0;
+  return eachDayOfInterval({ start: rs, end: re })
+    .filter(d => { const day = getDay(d); return day !== 0 && day !== 6; })
+    .length;
+}
+
+/** Weighted billable/utilisation for one booking overlapping [rs, re], based on working days. */
+function workingDayOverlap(rs: Date, re: Date, startISO: string, endISO: string): number {
+  const s = parseISO(startISO);
+  const e = parseISO(endISO);
+  const overlapStart = dmax([rs, s]);
+  const overlapEnd = dmin([re, e]);
+  if (overlapEnd < overlapStart) return 0;
+  const totalWd = workingDaysInRange(rs, re);
+  if (totalWd === 0) return 0;
+  return workingDaysInRange(overlapStart, overlapEnd) / totalWd;
+}
 
 type Metric = 'billability' | 'utilization';
 
@@ -42,7 +61,7 @@ function calcForRange(
     if (b.employeeId !== empId) continue;
     if (metric === 'billability' && b.type !== 'billable') continue;
     if (metric === 'utilization' && b.type === 'vacation') continue;
-    const frac = rangeOverlapFraction(rs, re, b.start, b.end);
+    const frac = workingDayOverlap(rs, re, b.start, b.end);
     if (frac > 0) total += b.workload * frac;
   }
   return Math.min(Math.round(total), 100);
