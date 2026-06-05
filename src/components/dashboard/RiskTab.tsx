@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { parseISO } from "date-fns";
 import { ArrowUpDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { useDashboard } from "@/lib/dashboard-store";
@@ -17,7 +18,16 @@ function riskColor(v: number) {
 }
 
 export function RiskTab() {
-  const { employees, bookings, opportunities, teams } = useDashboard();
+  const { employees: allEmployees, bookings, opportunities, teams } = useDashboard();
+
+  const today = new Date();
+  const employees = useMemo(() => allEmployees.filter((e) => {
+    if (!e.active) return false;
+    if (e.availableFrom && parseISO(e.availableFrom) > today) return false;
+    if (e.availableUntil && parseISO(e.availableUntil) < today) return false;
+    return true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [allEmployees]);
 
   const risks = useMemo<EmployeeRisk[]>(
     () => computeRisk(employees.map((e) => e.id), bookings, opportunities),

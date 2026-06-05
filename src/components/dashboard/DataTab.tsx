@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, ArrowRightCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRightCircle, PowerOff, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ export function DataTab() {
   } = useDashboard();
 
   const [empOpen, setEmpOpen] = useState(false);
-  const [empEdit, setEmpEdit] = useState<{ id: string; name: string; role: string; teamId: string } | null>(null);
+  const [empEdit, setEmpEdit] = useState<{ id: string; name: string; role: string; teamId: string; availableFrom?: string; availableUntil?: string; active: boolean } | null>(null);
   const [bOpen, setBOpen] = useState(false);
   const [bEdit, setBEdit] = useState<Booking | null>(null);
   const [oOpen, setOOpen] = useState(false);
@@ -46,19 +46,38 @@ export function DataTab() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead className="w-[100px]" />
+                <TableHead>Availability window</TableHead>
+                <TableHead className="w-[120px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {employees.map((e) => (
-                <TableRow key={e.id}>
-                  <TableCell className="font-medium">{e.name}</TableCell>
+                <TableRow key={e.id} className={e.active ? "" : "opacity-50"}>
+                  <TableCell className="font-medium">
+                    {e.name}
+                    {!e.active && <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>}
+                  </TableCell>
                   <TableCell>{e.role}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {e.availableFrom || e.availableUntil
+                      ? `${e.availableFrom ?? "—"} → ${e.availableUntil ?? "—"}`
+                      : "—"}
+                  </TableCell>
                   <TableCell>
                     {canEdit(e.teamId) && (
                       <div className="flex justify-end gap-1">
                         <Button size="icon" variant="ghost" onClick={() => { setEmpEdit(e); setEmpOpen(true); }}>
                           <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          size="icon" variant="ghost"
+                          title={e.active ? "Deactivate (hide from views)" : "Reactivate"}
+                          onClick={() => {
+                            updateEmployee({ ...e, active: !e.active });
+                            toast.success(e.active ? "Employee deactivated" : "Employee reactivated");
+                          }}
+                        >
+                          {e.active ? <PowerOff className="size-4" /> : <Power className="size-4" />}
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => { deleteEmployee(e.id); toast.success("Employee removed"); }}>
                           <Trash2 className="size-4" />
@@ -222,7 +241,7 @@ export function DataTab() {
         open={empOpen}
         onOpenChange={setEmpOpen}
         title={empEdit ? "Edit employee" : "New employee"}
-        initial={empEdit ? { name: empEdit.name, role: empEdit.role, teamId: empEdit.teamId } : undefined}
+        initial={empEdit ? { name: empEdit.name, role: empEdit.role, teamId: empEdit.teamId, availableFrom: empEdit.availableFrom, availableUntil: empEdit.availableUntil, active: empEdit.active } : undefined}
         onSubmit={(v: EmployeeFormValue) => {
           if (empEdit) {
             updateEmployee({ id: empEdit.id, ...v });

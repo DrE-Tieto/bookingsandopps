@@ -11,6 +11,9 @@ export interface EmployeeFormValue {
   name: string;
   role: string;
   teamId: string;
+  availableFrom?: string;
+  availableUntil?: string;
+  active: boolean;
 }
 
 interface Props {
@@ -28,12 +31,12 @@ export function EmployeeDialog({ open, onOpenChange, title, initial, onSubmit }:
   const defaultTeamId = profile?.role === "team_lead" ? (profile.teamId ?? "") : "";
 
   const [v, setV] = useState<EmployeeFormValue>(
-    initial ?? { name: "", role: "", teamId: defaultTeamId }
+    initial ?? { name: "", role: "", teamId: defaultTeamId, availableFrom: "", availableUntil: "", active: true }
   );
 
   useEffect(() => {
     if (open) {
-      setV(initial ?? { name: "", role: "", teamId: defaultTeamId });
+      setV(initial ?? { name: "", role: "", teamId: defaultTeamId, availableFrom: "", availableUntil: "", active: true });
     }
   }, [open, initial, defaultTeamId]);
 
@@ -67,25 +70,34 @@ export function EmployeeDialog({ open, onOpenChange, title, initial, onSubmit }:
                 </SelectTrigger>
                 <SelectContent>
                   {teams.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label>Available from <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                type="date"
+                value={v.availableFrom ?? ""}
+                onChange={(e) => setV({ ...v, availableFrom: e.target.value || undefined })}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Available until <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                type="date"
+                value={v.availableUntil ?? ""}
+                onChange={(e) => setV({ ...v, availableUntil: e.target.value || undefined })}
+              />
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button
-            onClick={() => {
-              onSubmit(v);
-              onOpenChange(false);
-            }}
-          >
-            Save
-          </Button>
+          <Button onClick={() => { onSubmit(v); onOpenChange(false); }}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

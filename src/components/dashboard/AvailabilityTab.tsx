@@ -1,6 +1,6 @@
 import { useMemo, useState, Fragment } from "react";
 import { ChevronDown, ChevronRight, ChevronsLeftRight, ChevronsRightLeft } from "lucide-react";
-import { startOfMonth, endOfMonth, max as dmax, min as dmin, parseISO, format } from "date-fns";
+import { startOfMonth, endOfMonth, max as dmax, min as dmin, parseISO, format, isAfter, isBefore } from "date-fns";
 import { useDashboard, type Employee } from "@/lib/dashboard-store";
 import { buildWeeks, groupByMonth, weekMonthFraction, rangeOverlapFraction, fmtDate, type WeekCol } from "@/lib/week-utils";
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,15 @@ function oppColor(p: number) {
   return "bg-red-500/20 text-red-700 dark:text-red-300";
 }
 
+function isInWindow(emp: Employee, rangeStart: Date, rangeEnd: Date): boolean {
+  if (emp.availableFrom && isBefore(rangeEnd, parseISO(emp.availableFrom))) return false;
+  if (emp.availableUntil && isAfter(rangeStart, parseISO(emp.availableUntil))) return false;
+  return true;
+}
+
 export function AvailabilityTab() {
-  const { employees, bookings, opportunities } = useDashboard();
+  const { employees: allEmployees, bookings, opportunities } = useDashboard();
+  const employees = allEmployees.filter((e) => e.active);
   const [horizonMonths, setHorizonMonths] = useState(6);
   const weeks = useMemo(() => buildWeeks(new Date(), Math.ceil(horizonMonths * 4.345)), [horizonMonths]);
   const months = useMemo(() => groupByMonth(weeks), [weeks]);
@@ -229,13 +236,17 @@ export function AvailabilityTab() {
                       </div>
                     </td>
                     {visibleCols.map((c) => {
-                      const val = c.kind === "week"
-                        ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd)
-                        : aggregateParts(emp.id, c.parts, bookingForRange);
+                      const inWindow = isInWindow(emp, c.rangeStart, c.rangeEnd);
+                      const val = inWindow
+                        ? c.kind === "week"
+                          ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd)
+                          : aggregateParts(emp.id, c.parts, bookingForRange)
+                        : null;
                       return (
                         <td key={`b-${c.key}`} className="border-l p-1">
-                          <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", bookingColor(val))}>
-                            {Math.round(val)}%
+                          <div className={cn("rounded px-1 py-1 text-center text-xs font-medium",
+                            val === null ? "bg-muted/40 text-muted-foreground" : bookingColor(val))}>
+                            {val === null ? "N/A" : `${Math.round(val)}%`}
                           </div>
                           {c.kind === "week" ? null : (
                             <div className="text-[10px] text-muted-foreground text-center mt-0.5">Booking</div>
@@ -248,15 +259,19 @@ export function AvailabilityTab() {
                   <tr className="border-b hover:bg-muted/30">
                     <td className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r" />
                     {visibleCols.map((c) => {
+                      const inWindow = isInWindow(emp, c.rangeStart, c.rangeEnd);
                       const forecastFn = (id: string, rs: Date, re: Date) =>
                         bookingForRange(id, rs, re) + oppForRange(id, rs, re);
-                      const val = c.kind === "week"
-                        ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd) + oppForRange(emp.id, c.rangeStart, c.rangeEnd)
-                        : aggregateParts(emp.id, c.parts, forecastFn);
+                      const val = inWindow
+                        ? c.kind === "week"
+                          ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd) + oppForRange(emp.id, c.rangeStart, c.rangeEnd)
+                          : aggregateParts(emp.id, c.parts, forecastFn)
+                        : null;
                       return (
                         <td key={`f-${c.key}`} className="border-l p-1">
-                          <div className={cn("rounded px-1 py-1 text-center text-xs font-medium", oppColor(val))}>
-                            {Math.round(val)}%
+                          <div className={cn("rounded px-1 py-1 text-center text-xs font-medium",
+                            val === null ? "bg-muted/40 text-muted-foreground" : oppColor(val))}>
+                            {val === null ? "N/A" : `${Math.round(val)}%`}
                           </div>
                           {c.kind === "week" ? null : (
                             <div className="text-[10px] text-muted-foreground text-center mt-0.5">Forecast</div>

@@ -8,6 +8,9 @@ export interface Employee {
   name: string;
   role: string;
   teamId: string;
+  availableFrom?: string;  // ISO date, optional
+  availableUntil?: string; // ISO date, optional
+  active: boolean;
 }
 
 export interface Team {
@@ -84,11 +87,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       let q = supabase.from("employees").select("*");
       if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
       const { data } = await q.order("full_name");
-      return (data ?? []).map((e: { id: string; full_name: string; role: string; team_id: string }) => ({
+      return (data ?? []).map((e: { id: string; full_name: string; role: string; team_id: string; available_from: string | null; available_until: string | null; active: boolean }) => ({
         id: e.id,
         name: e.full_name,
         role: e.role,
         teamId: e.team_id,
+        availableFrom: e.available_from ?? undefined,
+        availableUntil: e.available_until ?? undefined,
+        active: e.active,
       }));
     },
   });
@@ -155,14 +161,27 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const addEmployee = (e: Omit<Employee, "id">) => {
     supabase
       .from("employees")
-      .insert({ full_name: e.name, role: e.role, team_id: e.teamId })
+      .insert({
+        full_name: e.name,
+        role: e.role,
+        team_id: e.teamId,
+        available_from: e.availableFrom ?? null,
+        available_until: e.availableUntil ?? null,
+        active: e.active ?? true,
+      })
       .then(() => queryClient.invalidateQueries({ queryKey: ["employees"] }));
   };
 
   const updateEmployee = (e: Employee) => {
     supabase
       .from("employees")
-      .update({ full_name: e.name, role: e.role })
+      .update({
+        full_name: e.name,
+        role: e.role,
+        available_from: e.availableFrom ?? null,
+        available_until: e.availableUntil ?? null,
+        active: e.active,
+      })
       .eq("id", e.id)
       .then(() => queryClient.invalidateQueries({ queryKey: ["employees"] }));
   };
