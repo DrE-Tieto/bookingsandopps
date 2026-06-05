@@ -3,7 +3,6 @@ import type { Booking, Opportunity } from "./dashboard-store";
 
 export const RISK_MONTHS = 12;
 
-/** Average weekly availability (0..100) for an employee in a given month window. */
 function weeklyOverlapFraction(ws: Date, we: Date, startISO: string, endISO: string) {
   const s = parseISO(startISO);
   const e = parseISO(endISO);
@@ -22,8 +21,6 @@ export function monthlyAvailability(
 ): number {
   const mStart = startOfMonth(monthStart);
   const mEnd = endOfMonth(monthStart);
-  // Include weeks that touch the month; weight each by the fraction of its
-  // days inside the month (so split weeks count as a short week per month).
   const weekStarts = eachWeekOfInterval(
     { start: startOfISOWeek(mStart), end: mEnd },
     { weekStartsOn: 1 },
@@ -61,10 +58,10 @@ export function monthlyAvailability(
 export interface EmployeeRisk {
   employeeId: string;
   overall: number;
-  near: number;   // months 0-1
-  mid: number;    // months 2-5
-  far: number;    // months 6-12
-  monthly: number[]; // length 13 (months 0..12)
+  near: number;
+  mid: number;
+  far: number;
+  monthly: number[];
 }
 
 export function computeRisk(
@@ -85,14 +82,7 @@ export function computeRisk(
       for (let i = from; i <= to; i++) s += monthly[i];
       return s / n;
     };
-    return {
-      employeeId: empId,
-      overall,
-      near: partial(0, 1),
-      mid: partial(2, 5),
-      far: partial(6, 12),
-      monthly,
-    };
+    return { employeeId: empId, overall, near: partial(0, 1), mid: partial(2, 5), far: partial(6, 12), monthly };
   });
 }
 
@@ -102,11 +92,12 @@ export function teamRisk(risks: EmployeeRisk[]): number {
 }
 
 // ===== Snapshot storage (localStorage) =====
-const SNAP_KEY = "team-risk-snapshots-v1";
+const SNAP_KEY = "team-risk-snapshots-v2";
 
 export interface Snapshot {
   date: string; // yyyy-MM-dd (Monday of ISO week)
-  teamRisk: number;
+  department: number;
+  teams: Record<string, number>; // teamId -> risk
 }
 
 function snapWeekKey(d: Date) {
@@ -128,31 +119,23 @@ export function saveSnapshots(snaps: Snapshot[]) {
   localStorage.setItem(SNAP_KEY, JSON.stringify(snaps));
 }
 
-/** Ensure the current ISO week has a snapshot using `currentTeamRisk`.
- * If no history exists, seeds 12 weeks of synthetic prior snapshots so the chart isn't empty. */
-export function ensureWeeklySnapshot(currentTeamRisk: number): Snapshot[] {
+export function ensureWeeklySnapshot(
+  departmentRisk: number,
+  teamRisks: Record<string, number>,
+): Snapshot[] {
   const today = new Date();
   const todayKey = snapWeekKey(today);
-  let snaps = loadSnapshots();
-  if (snaps.length === 0) {
-    // seed 12 prior weekly snapshots with a smooth pseudo-random walk around current
-    const seeded: Snapshot[] = [];
-    let val = currentTeamRisk + (Math.random() - 0.5) * 40;
-    for (let i = 12; i >= 1; i--) {
-      const ws = startOfISOWeek(new Date(today.getTime() - i * 7 * 86400000));
-      val = Math.max(0, val + (Math.random() - 0.5) * 25);
-      // drift toward current
-      val = val * 0.7 + currentTeamRisk * 0.3;
-      seeded.push({ date: format(ws, "yyyy-MM-dd"), teamRisk: Math.round(val * 10) / 10 });
-    }
-    snaps = seeded;
-  }
+  const snaps = loadSnapshots();
+  const snap: Snapshot = {
+    date: todayKey,
+    department: Math.round(departmentRisk * 10) / 10,
+    teams: Object.fromEntries(
+      Object.entries(teamRisks).map(([id, v]) => [id, Math.round(v * 10) / 10])
+    ),
+  };
   const idx = snaps.findIndex((s) => s.date === todayKey);
-  if (idx >= 0) {
-    snaps[idx] = { date: todayKey, teamRisk: Math.round(currentTeamRisk * 10) / 10 };
-  } else {
-    snaps.push({ date: todayKey, teamRisk: Math.round(currentTeamRisk * 10) / 10 });
-  }
+  if (idx >= 0) snaps[idx] = snap;
+  else snaps.push(snap);
   snaps.sort((a, b) => a.date.localeCompare(b.date));
   saveSnapshots(snaps);
   return snaps;
