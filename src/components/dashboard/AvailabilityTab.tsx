@@ -236,7 +236,9 @@ export function AvailabilityTab() {
                       </div>
                     </td>
                     {visibleCols.map((c) => {
-                      const inWindow = isInWindow(emp, c.rangeStart, c.rangeEnd);
+                      const rs = c.kind === "week" ? c.rangeStart : c.parts[0]?.rangeStart ?? new Date();
+                      const re = c.kind === "week" ? c.rangeEnd : c.parts[c.parts.length - 1]?.rangeEnd ?? new Date();
+                      const inWindow = isInWindow(emp, rs, re);
                       const val = inWindow
                         ? c.kind === "week"
                           ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd)
@@ -259,7 +261,9 @@ export function AvailabilityTab() {
                   <tr className="border-b hover:bg-muted/30">
                     <td className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r" />
                     {visibleCols.map((c) => {
-                      const inWindow = isInWindow(emp, c.rangeStart, c.rangeEnd);
+                      const rs = c.kind === "week" ? c.rangeStart : c.parts[0]?.rangeStart ?? new Date();
+                      const re = c.kind === "week" ? c.rangeEnd : c.parts[c.parts.length - 1]?.rangeEnd ?? new Date();
+                      const inWindow = isInWindow(emp, rs, re);
                       const forecastFn = (id: string, rs: Date, re: Date) =>
                         bookingForRange(id, rs, re) + oppForRange(id, rs, re);
                       const val = inWindow
