@@ -86,12 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return error.message;
     if (!data.user) return "Sign up failed";
-    const { error: profileError } = await supabase.from("user_profiles").insert({
-      id: data.user.id,
-      email,
+    const { error: profileError } = await supabase.rpc("create_user_profile", {
+      user_id: data.user.id,
+      user_email: email,
       full_name: fullName,
       team_id: teamId,
-      role,
+      user_role: role,
     });
     return profileError ? profileError.message : null;
   };
