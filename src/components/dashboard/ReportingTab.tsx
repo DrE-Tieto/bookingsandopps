@@ -13,17 +13,6 @@ function workingDaysInRange(rs: Date, re: Date): number {
     .length;
 }
 
-/** Weighted billable/utilisation for one booking overlapping [rs, re], based on working days. */
-function workingDayOverlap(rs: Date, re: Date, startISO: string, endISO: string): number {
-  const s = parseISO(startISO);
-  const e = parseISO(endISO);
-  const overlapStart = dmax([rs, s]);
-  const overlapEnd = dmin([re, e]);
-  if (overlapEnd < overlapStart) return 0;
-  const totalWd = workingDaysInRange(rs, re);
-  if (totalWd === 0) return 0;
-  return workingDaysInRange(overlapStart, overlapEnd) / totalWd;
-}
 
 type Metric = 'billability' | 'utilization';
 
@@ -56,15 +45,41 @@ function calcForRange(
   bookings: Booking[],
   metric: Metric,
 ): number {
-  let total = 0;
+  const totalWd = workingDaysInRange(rs, re);
+  if (totalWd === 0) return 0;
+
+  // For utilisation: subtract vacation working days from denominator
+  let denominator = totalWd;
+  if (metric === 'utilization') {
+    for (const b of bookings) {
+      if (b.employeeId !== empId || b.type !== 'vacation') continue;
+      const s = parseISO(b.start);
+      const e = parseISO(b.end);
+      const overlapStart = dmax([rs, s]);
+      const overlapEnd = dmin([re, e]);
+      if (overlapEnd >= overlapStart) {
+        // subtract the vacation working days weighted by workload %
+        denominator -= workingDaysInRange(overlapStart, overlapEnd) * (b.workload / 100);
+      }
+    }
+    denominator = Math.max(denominator, 1);
+  }
+
+  let numerator = 0;
   for (const b of bookings) {
     if (b.employeeId !== empId) continue;
     if (metric === 'billability' && b.type !== 'billable') continue;
     if (metric === 'utilization' && b.type === 'vacation') continue;
-    const frac = workingDayOverlap(rs, re, b.start, b.end);
-    if (frac > 0) total += b.workload * frac;
+    const s = parseISO(b.start);
+    const e = parseISO(b.end);
+    const overlapStart = dmax([rs, s]);
+    const overlapEnd = dmin([re, e]);
+    if (overlapEnd >= overlapStart) {
+      numerator += workingDaysInRange(overlapStart, overlapEnd) * (b.workload / 100);
+    }
   }
-  return Math.min(Math.round(total), 100);
+
+  return Math.min(Math.round((numerator / denominator) * 100), 100);
 }
 
 function isInWindow(emp: Employee, rs: Date, re: Date): boolean {
