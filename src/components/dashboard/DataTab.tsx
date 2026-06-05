@@ -109,6 +109,7 @@ export function DataTab() {
                 <TableHead>Employee</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Project</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead className="text-right">Workload</TableHead>
                 <TableHead>Period</TableHead>
                 <TableHead className="w-[100px]" />
@@ -122,6 +123,15 @@ export function DataTab() {
                     <TableCell className="font-medium">{nameOf(b.employeeId)}</TableCell>
                     <TableCell>{b.customer}</TableCell>
                     <TableCell>{b.project}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={
+                        b.type === 'internal' ? "bg-blue-100 text-blue-800 border-blue-200" :
+                        b.type === 'vacation' ? "bg-orange-100 text-orange-800 border-orange-200" :
+                        "bg-emerald-100 text-emerald-800 border-emerald-200"
+                      }>
+                        {b.type ?? 'billable'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">{b.workload}%</TableCell>
                     <TableCell className="text-muted-foreground">{fmtDate(b.start)} → {fmtDate(b.end)}</TableCell>
                     <TableCell>
@@ -209,13 +219,13 @@ export function DataTab() {
         onOpenChange={setBOpen}
         title={bEdit ? "Edit booking" : "New booking"}
         employees={employees}
-        initial={bEdit ? { employeeId: bEdit.employeeId, customer: bEdit.customer, project: bEdit.project, workload: bEdit.workload, start: bEdit.start, end: bEdit.end } : undefined}
+        initial={bEdit ? { employeeId: bEdit.employeeId, customer: bEdit.customer, project: bEdit.project, workload: bEdit.workload, start: bEdit.start, end: bEdit.end, type: bEdit.type } : undefined}
         onSubmit={(v: EntryFormValue) => {
           if (bEdit) {
-            updateBooking({ ...bEdit, ...v });
+            updateBooking({ ...bEdit, ...v, type: v.type ?? 'billable' });
             toast.success("Booking updated");
           } else {
-            addBooking({ employeeId: v.employeeId, customer: v.customer, project: v.project, workload: v.workload, start: v.start, end: v.end });
+            addBooking({ employeeId: v.employeeId, customer: v.customer, project: v.project, workload: v.workload, start: v.start, end: v.end, type: v.type ?? 'billable' });
             toast.success("Booking added");
           }
         }}

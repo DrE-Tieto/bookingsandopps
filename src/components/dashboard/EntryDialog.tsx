@@ -14,6 +14,7 @@ export interface EntryFormValue {
   start: string;
   end: string;
   probability?: number;
+  type?: 'billable' | 'internal' | 'vacation';
 }
 
 interface Props {
@@ -30,12 +31,12 @@ const today = new Date().toISOString().slice(0, 10);
 
 export function EntryDialog({ open, onOpenChange, title, employees, initial, withProbability, onSubmit }: Props) {
   const [v, setV] = useState<EntryFormValue>(
-    initial ?? { employeeId: employees[0]?.id ?? "", customer: "", project: "", workload: 50, start: today, end: today, probability: 50 }
+    initial ?? { employeeId: employees[0]?.id ?? "", customer: "", project: "", workload: 50, start: today, end: today, probability: 50, type: 'billable' }
   );
 
   useEffect(() => {
     if (open) {
-      setV(initial ?? { employeeId: employees[0]?.id ?? "", customer: "", project: "", workload: 50, start: today, end: today, probability: 50 });
+      setV(initial ?? { employeeId: employees[0]?.id ?? "", customer: "", project: "", workload: 50, start: today, end: today, probability: 50, type: 'billable' });
     }
   }, [open, initial, employees]);
 
@@ -85,6 +86,19 @@ export function EntryDialog({ open, onOpenChange, title, employees, initial, wit
               </div>
             )}
           </div>
+          {!withProbability && (
+            <div className="grid gap-1.5">
+              <Label>Type</Label>
+              <Select value={v.type ?? 'billable'} onValueChange={(val) => setV({ ...v, type: val as 'billable' | 'internal' | 'vacation' })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="billable">Billable</SelectItem>
+                  <SelectItem value="internal">Internal</SelectItem>
+                  <SelectItem value="vacation">Vacation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

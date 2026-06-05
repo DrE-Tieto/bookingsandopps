@@ -26,6 +26,7 @@ export interface Booking {
   workload: number;
   start: string;
   end: string;
+  type: 'billable' | 'internal' | 'vacation';
 }
 
 export interface Opportunity {
@@ -124,6 +125,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         workload: b.workload_pct,
         start: b.start_date,
         end: b.end_date,
+        type: (b.type ?? 'billable') as 'billable' | 'internal' | 'vacation',
       }));
     },
   });
@@ -208,6 +210,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         workload_pct: b.workload,
         start_date: b.start,
         end_date: b.end,
+        type: b.type ?? 'billable',
       })
       .then(() => queryClient.invalidateQueries({ queryKey: ["bookings"] }));
   };
@@ -222,6 +225,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         workload_pct: b.workload,
         start_date: b.start,
         end_date: b.end,
+        type: b.type,
       })
       .eq("id", b.id)
       .then(() => queryClient.invalidateQueries({ queryKey: ["bookings"] }));
