@@ -1,10 +1,18 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { addDays, addMonths, format } from "date-fns";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "./supabase";
+import { useAuth } from "./auth-context";
 
 export interface Employee {
   id: string;
   name: string;
   role: string;
+  teamId: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
 }
 
 export interface Booking {
@@ -12,9 +20,9 @@ export interface Booking {
   employeeId: string;
   customer: string;
   project: string;
-  workload: number; // %
-  start: string; // ISO date
-  end: string; // ISO date
+  workload: number;
+  start: string;
+  end: string;
 }
 
 export interface Opportunity {
@@ -22,8 +30,8 @@ export interface Opportunity {
   employeeId: string;
   customer: string;
   project: string;
-  workload: number; // %
-  probability: number; // %
+  workload: number;
+  probability: number;
   start: string;
   end: string;
 }
@@ -32,6 +40,11 @@ interface Ctx {
   employees: Employee[];
   bookings: Booking[];
   opportunities: Opportunity[];
+  teams: Team[];
+  selectedTeamId: string | null;
+  setSelectedTeamId: (id: string | null) => void;
+  isLoading: boolean;
+  canEdit: (employeeTeamId: string) => boolean;
   addEmployee: (e: Omit<Employee, "id">) => void;
   updateEmployee: (e: Employee) => void;
   deleteEmployee: (id: string) => void;
@@ -46,84 +59,254 @@ interface Ctx {
 
 const DashboardContext = createContext<Ctx | null>(null);
 
-const today = new Date();
-const iso = (d: Date) => format(d, "yyyy-MM-dd");
-const uid = () => Math.random().toString(36).slice(2, 10);
-
-const EMPLOYEES: Employee[] = [
-  { id: "e1", name: "Alice Johansson", role: "Senior Consultant" },
-  { id: "e2", name: "Ben Müller", role: "Consultant" },
-  { id: "e3", name: "Chen Wei", role: "Principal" },
-  { id: "e4", name: "Diana Rossi", role: "Senior Consultant" },
-  { id: "e5", name: "Eitan Cohen", role: "Consultant" },
-  { id: "e6", name: "Farida Khan", role: "Manager" },
-];
-
-const seedBookings: Booking[] = [
-  { id: uid(), employeeId: "e1", customer: "Acme Corp", project: "Cloud Migration", workload: 60, start: iso(addDays(today, -10)), end: iso(addMonths(today, 4)) },
-  { id: uid(), employeeId: "e1", customer: "Globex", project: "Data Platform", workload: 30, start: iso(addMonths(today, 1)), end: iso(addMonths(today, 3)) },
-  { id: uid(), employeeId: "e2", customer: "Initech", project: "ERP Rollout", workload: 80, start: iso(addDays(today, -20)), end: iso(addMonths(today, 5)) },
-  { id: uid(), employeeId: "e3", customer: "Umbrella", project: "AI Strategy", workload: 50, start: iso(today), end: iso(addMonths(today, 6)) },
-  { id: uid(), employeeId: "e4", customer: "Stark Industries", project: "Process Redesign", workload: 100, start: iso(addDays(today, -5)), end: iso(addMonths(today, 3)) },
-  { id: uid(), employeeId: "e5", customer: "Wayne Enterprises", project: "Security Audit", workload: 40, start: iso(addMonths(today, 1)), end: iso(addMonths(today, 4)) },
-  { id: uid(), employeeId: "e6", customer: "Hooli", project: "Org Design", workload: 70, start: iso(today), end: iso(addMonths(today, 5)) },
-];
-
-const seedOpps: Opportunity[] = [
-  { id: uid(), employeeId: "e1", customer: "Pied Piper", project: "Compression POC", workload: 40, probability: 60, start: iso(addMonths(today, 2)), end: iso(addMonths(today, 5)) },
-  { id: uid(), employeeId: "e2", customer: "Soylent", project: "Supply Chain", workload: 50, probability: 80, start: iso(addMonths(today, 1)), end: iso(addMonths(today, 4)) },
-  { id: uid(), employeeId: "e2", customer: "Vandelay", project: "Export Strategy", workload: 30, probability: 40, start: iso(addMonths(today, 2)), end: iso(addMonths(today, 5)) },
-  { id: uid(), employeeId: "e3", customer: "Massive Dynamic", project: "R&D Roadmap", workload: 50, probability: 70, start: iso(addMonths(today, 1)), end: iso(addMonths(today, 6)) },
-  { id: uid(), employeeId: "e4", customer: "Cyberdyne", project: "Automation", workload: 50, probability: 90, start: iso(addMonths(today, 3)), end: iso(addMonths(today, 6)) },
-  { id: uid(), employeeId: "e5", customer: "Tyrell Corp", project: "Bioethics Review", workload: 60, probability: 50, start: iso(today), end: iso(addMonths(today, 3)) },
-  { id: uid(), employeeId: "e5", customer: "Oscorp", project: "Lab Ops", workload: 40, probability: 70, start: iso(addMonths(today, 2)), end: iso(addMonths(today, 5)) },
-  { id: uid(), employeeId: "e6", customer: "Gringotts", project: "Compliance", workload: 30, probability: 60, start: iso(addMonths(today, 1)), end: iso(addMonths(today, 4)) },
-];
-
 export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [employees, setEmployees] = useState<Employee[]>(EMPLOYEES);
-  const [bookings, setBookings] = useState<Booking[]>(seedBookings);
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(seedOpps);
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
-  const value = useMemo<Ctx>(() => ({
-    employees,
-    bookings,
-    opportunities,
-    addEmployee: (e) => setEmployees((p) => [...p, { ...e, id: uid() }]),
-    updateEmployee: (e) => setEmployees((p) => p.map((x) => (x.id === e.id ? e : x))),
-    deleteEmployee: (id) => {
-      setEmployees((p) => p.filter((x) => x.id !== id));
-      setBookings((p) => p.filter((x) => x.employeeId !== id));
-      setOpportunities((p) => p.filter((x) => x.employeeId !== id));
+  useEffect(() => {
+    if (profile?.role === "team_lead" && profile.teamId) {
+      setSelectedTeamId(profile.teamId);
+    }
+  }, [profile]);
+
+  const { data: teams = [] } = useQuery({
+    queryKey: ["teams"],
+    queryFn: async () => {
+      const { data } = await supabase.from("teams").select("*").order("name");
+      return (data ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name }));
     },
-    addBooking: (b) => setBookings((p) => [...p, { ...b, id: uid() }]),
-    updateBooking: (b) => setBookings((p) => p.map((x) => (x.id === b.id ? b : x))),
-    deleteBooking: (id) => setBookings((p) => p.filter((x) => x.id !== id)),
-    addOpportunity: (o) => setOpportunities((p) => [...p, { ...o, id: uid() }]),
-    updateOpportunity: (o) => setOpportunities((p) => p.map((x) => (x.id === o.id ? o : x))),
-    deleteOpportunity: (id) => setOpportunities((p) => p.filter((x) => x.id !== id)),
-    convertOpportunity: (id) => {
-      setOpportunities((prev) => {
-        const o = prev.find((x) => x.id === id);
-        if (!o) return prev;
-        setBookings((b) => [
-          ...b,
-          {
-            id: uid(),
-            employeeId: o.employeeId,
-            customer: o.customer,
-            project: o.project,
-            workload: o.workload,
-            start: o.start,
-            end: o.end,
-          },
-        ]);
-        return prev.filter((x) => x.id !== id);
+  });
+
+  const { data: employees = [], isLoading } = useQuery({
+    queryKey: ["employees", selectedTeamId],
+    queryFn: async () => {
+      let q = supabase.from("employees").select("*");
+      if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
+      const { data } = await q.order("full_name");
+      return (data ?? []).map((e: { id: string; full_name: string; role: string; team_id: string }) => ({
+        id: e.id,
+        name: e.full_name,
+        role: e.role,
+        teamId: e.team_id,
+      }));
+    },
+  });
+
+  const { data: bookings = [] } = useQuery({
+    queryKey: ["bookings", selectedTeamId],
+    queryFn: async () => {
+      let query = supabase.from("bookings").select("*");
+      if (selectedTeamId) {
+        const { data: emps } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("team_id", selectedTeamId);
+        const ids = (emps ?? []).map((e: { id: string }) => e.id);
+        if (ids.length === 0) return [];
+        query = query.in("employee_id", ids);
+      }
+      const { data } = await query;
+      return (data ?? []).map((b: {
+        id: string; employee_id: string; customer: string; project: string;
+        workload_pct: number; start_date: string; end_date: string;
+      }) => ({
+        id: b.id,
+        employeeId: b.employee_id,
+        customer: b.customer,
+        project: b.project,
+        workload: b.workload_pct,
+        start: b.start_date,
+        end: b.end_date,
+      }));
+    },
+  });
+
+  const { data: opportunities = [] } = useQuery({
+    queryKey: ["opportunities", selectedTeamId],
+    queryFn: async () => {
+      let query = supabase.from("opportunities").select("*");
+      if (selectedTeamId) {
+        const { data: emps } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("team_id", selectedTeamId);
+        const ids = (emps ?? []).map((e: { id: string }) => e.id);
+        if (ids.length === 0) return [];
+        query = query.in("employee_id", ids);
+      }
+      const { data } = await query;
+      return (data ?? []).map((o: {
+        id: string; employee_id: string; customer: string; project: string;
+        workload_pct: number; probability: number; start_date: string; end_date: string;
+      }) => ({
+        id: o.id,
+        employeeId: o.employee_id,
+        customer: o.customer,
+        project: o.project,
+        workload: o.workload_pct,
+        probability: o.probability,
+        start: o.start_date,
+        end: o.end_date,
+      }));
+    },
+  });
+
+  const addEmployee = (e: Omit<Employee, "id">) => {
+    supabase
+      .from("employees")
+      .insert({ full_name: e.name, role: e.role, team_id: e.teamId })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["employees"] }));
+  };
+
+  const updateEmployee = (e: Employee) => {
+    supabase
+      .from("employees")
+      .update({ full_name: e.name, role: e.role })
+      .eq("id", e.id)
+      .then(() => queryClient.invalidateQueries({ queryKey: ["employees"] }));
+  };
+
+  const deleteEmployee = (id: string) => {
+    supabase
+      .from("employees")
+      .delete()
+      .eq("id", id)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["employees"] });
+        queryClient.invalidateQueries({ queryKey: ["bookings"] });
+        queryClient.invalidateQueries({ queryKey: ["opportunities"] });
       });
-    },
-  }), [employees, bookings, opportunities]);
+  };
 
-  return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;
+  const addBooking = (b: Omit<Booking, "id">) => {
+    supabase
+      .from("bookings")
+      .insert({
+        employee_id: b.employeeId,
+        customer: b.customer,
+        project: b.project,
+        workload_pct: b.workload,
+        start_date: b.start,
+        end_date: b.end,
+      })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["bookings"] }));
+  };
+
+  const updateBooking = (b: Booking) => {
+    supabase
+      .from("bookings")
+      .update({
+        employee_id: b.employeeId,
+        customer: b.customer,
+        project: b.project,
+        workload_pct: b.workload,
+        start_date: b.start,
+        end_date: b.end,
+      })
+      .eq("id", b.id)
+      .then(() => queryClient.invalidateQueries({ queryKey: ["bookings"] }));
+  };
+
+  const deleteBooking = (id: string) => {
+    supabase
+      .from("bookings")
+      .delete()
+      .eq("id", id)
+      .then(() => queryClient.invalidateQueries({ queryKey: ["bookings"] }));
+  };
+
+  const addOpportunity = (o: Omit<Opportunity, "id">) => {
+    supabase
+      .from("opportunities")
+      .insert({
+        employee_id: o.employeeId,
+        customer: o.customer,
+        project: o.project,
+        workload_pct: o.workload,
+        probability: o.probability,
+        start_date: o.start,
+        end_date: o.end,
+      })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["opportunities"] }));
+  };
+
+  const updateOpportunity = (o: Opportunity) => {
+    supabase
+      .from("opportunities")
+      .update({
+        employee_id: o.employeeId,
+        customer: o.customer,
+        project: o.project,
+        workload_pct: o.workload,
+        probability: o.probability,
+        start_date: o.start,
+        end_date: o.end,
+      })
+      .eq("id", o.id)
+      .then(() => queryClient.invalidateQueries({ queryKey: ["opportunities"] }));
+  };
+
+  const deleteOpportunity = (id: string) => {
+    supabase
+      .from("opportunities")
+      .delete()
+      .eq("id", id)
+      .then(() => queryClient.invalidateQueries({ queryKey: ["opportunities"] }));
+  };
+
+  const convertOpportunity = (id: string) => {
+    const opp = opportunities.find((o) => o.id === id);
+    if (!opp) return;
+    supabase
+      .from("bookings")
+      .insert({
+        employee_id: opp.employeeId,
+        customer: opp.customer,
+        project: opp.project,
+        workload_pct: opp.workload,
+        start_date: opp.start,
+        end_date: opp.end,
+      })
+      .then(() => supabase.from("opportunities").delete().eq("id", id))
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["bookings"] });
+        queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+      });
+  };
+
+  const canEdit = (employeeTeamId: string): boolean => {
+    if (!profile) return false;
+    if (profile.role === "department_head") return true;
+    return profile.teamId === employeeTeamId;
+  };
+
+  return (
+    <DashboardContext.Provider
+      value={{
+        employees,
+        bookings,
+        opportunities,
+        teams,
+        selectedTeamId,
+        setSelectedTeamId,
+        isLoading,
+        canEdit,
+        addEmployee,
+        updateEmployee,
+        deleteEmployee,
+        addBooking,
+        updateBooking,
+        deleteBooking,
+        addOpportunity,
+        updateOpportunity,
+        deleteOpportunity,
+        convertOpportunity,
+      }}
+    >
+      {children}
+    </DashboardContext.Provider>
+  );
 }
 
 export function useDashboard() {

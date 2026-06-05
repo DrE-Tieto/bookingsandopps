@@ -3,11 +3,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import type { Employee } from "@/lib/dashboard-store";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/lib/auth-context";
+import { useDashboard } from "@/lib/dashboard-store";
 
 export interface EmployeeFormValue {
   name: string;
   role: string;
+  teamId: string;
 }
 
 interface Props {
@@ -19,13 +22,20 @@ interface Props {
 }
 
 export function EmployeeDialog({ open, onOpenChange, title, initial, onSubmit }: Props) {
-  const [v, setV] = useState<EmployeeFormValue>(initial ?? { name: "", role: "" });
+  const { profile } = useAuth();
+  const { teams } = useDashboard();
+
+  const defaultTeamId = profile?.role === "team_lead" ? (profile.teamId ?? "") : "";
+
+  const [v, setV] = useState<EmployeeFormValue>(
+    initial ?? { name: "", role: "", teamId: defaultTeamId }
+  );
 
   useEffect(() => {
     if (open) {
-      setV(initial ?? { name: "", role: "" });
+      setV(initial ?? { name: "", role: "", teamId: defaultTeamId });
     }
-  }, [open, initial]);
+  }, [open, initial, defaultTeamId]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -34,16 +44,48 @@ export function EmployeeDialog({ open, onOpenChange, title, initial, onSubmit }:
         <div className="grid gap-3">
           <div className="grid gap-1.5">
             <Label>Name</Label>
-            <Input value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} placeholder="e.g. Alice Johansson" />
+            <Input
+              value={v.name}
+              onChange={(e) => setV({ ...v, name: e.target.value })}
+              placeholder="e.g. Alice Johansson"
+            />
           </div>
           <div className="grid gap-1.5">
             <Label>Role</Label>
-            <Input value={v.role} onChange={(e) => setV({ ...v, role: e.target.value })} placeholder="e.g. Senior Consultant" />
+            <Input
+              value={v.role}
+              onChange={(e) => setV({ ...v, role: e.target.value })}
+              placeholder="e.g. Senior Consultant"
+            />
           </div>
+          {profile?.role === "department_head" && (
+            <div className="grid gap-1.5">
+              <Label>Team</Label>
+              <Select value={v.teamId} onValueChange={(val) => setV({ ...v, teamId: val })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => { onSubmit(v); onOpenChange(false); }}>Save</Button>
+          <Button
+            onClick={() => {
+              onSubmit(v);
+              onOpenChange(false);
+            }}
+          >
+            Save
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

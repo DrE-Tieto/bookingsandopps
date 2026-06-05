@@ -6,11 +6,14 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useNavigate,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 
 function NotFoundComponent() {
   return (
@@ -72,6 +75,20 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+function AuthGuard() {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const { location } = useRouterState();
+
+  useEffect(() => {
+    if (!isLoading && !user && location.pathname !== "/login") {
+      navigate({ to: "/login" });
+    }
+  }, [user, isLoading, location.pathname, navigate]);
+
+  return null;
+}
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
@@ -122,8 +139,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthProvider>
+        <AuthGuard />
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

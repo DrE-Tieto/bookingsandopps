@@ -16,10 +16,11 @@ export function DataTab() {
     addBooking, updateBooking, deleteBooking,
     addOpportunity, updateOpportunity, deleteOpportunity,
     convertOpportunity,
+    canEdit,
   } = useDashboard();
 
   const [empOpen, setEmpOpen] = useState(false);
-  const [empEdit, setEmpEdit] = useState<{ id: string; name: string; role: string } | null>(null);
+  const [empEdit, setEmpEdit] = useState<{ id: string; name: string; role: string; teamId: string } | null>(null);
   const [bOpen, setBOpen] = useState(false);
   const [bEdit, setBEdit] = useState<Booking | null>(null);
   const [oOpen, setOOpen] = useState(false);
@@ -54,14 +55,16 @@ export function DataTab() {
                   <TableCell className="font-medium">{e.name}</TableCell>
                   <TableCell>{e.role}</TableCell>
                   <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => { setEmpEdit(e); setEmpOpen(true); }}>
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { deleteEmployee(e.id); toast.success("Employee removed"); }}>
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
+                    {canEdit(e.teamId) && (
+                      <div className="flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => { setEmpEdit(e); setEmpOpen(true); }}>
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => { deleteEmployee(e.id); toast.success("Employee removed"); }}>
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -93,25 +96,30 @@ export function DataTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bookings.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell className="font-medium">{nameOf(b.employeeId)}</TableCell>
-                  <TableCell>{b.customer}</TableCell>
-                  <TableCell>{b.project}</TableCell>
-                  <TableCell className="text-right">{b.workload}%</TableCell>
-                  <TableCell className="text-muted-foreground">{fmtDate(b.start)} → {fmtDate(b.end)}</TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => { setBEdit(b); setBOpen(true); }}>
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { deleteBooking(b.id); toast.success("Booking deleted"); }}>
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {bookings.map((b) => {
+                const emp = employees.find((e) => e.id === b.employeeId);
+                return (
+                  <TableRow key={b.id}>
+                    <TableCell className="font-medium">{nameOf(b.employeeId)}</TableCell>
+                    <TableCell>{b.customer}</TableCell>
+                    <TableCell>{b.project}</TableCell>
+                    <TableCell className="text-right">{b.workload}%</TableCell>
+                    <TableCell className="text-muted-foreground">{fmtDate(b.start)} → {fmtDate(b.end)}</TableCell>
+                    <TableCell>
+                      {(!emp || canEdit(emp.teamId)) && (
+                        <div className="flex justify-end gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => { setBEdit(b); setBOpen(true); }}>
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => { deleteBooking(b.id); toast.success("Booking deleted"); }}>
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -141,32 +149,37 @@ export function DataTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {opportunities.map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell className="font-medium">{nameOf(o.employeeId)}</TableCell>
-                  <TableCell>{o.customer}</TableCell>
-                  <TableCell>{o.project}</TableCell>
-                  <TableCell className="text-right">{o.workload}%</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="secondary">{o.probability}%</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{fmtDate(o.start)} → {fmtDate(o.end)}</TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" title="Convert to booking"
-                        onClick={() => { convertOpportunity(o.id); toast.success("Converted to booking"); }}>
-                        <ArrowRightCircle className="size-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { setOEdit(o); setOOpen(true); }}>
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { deleteOpportunity(o.id); toast.success("Opportunity deleted"); }}>
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {opportunities.map((o) => {
+                const emp = employees.find((e) => e.id === o.employeeId);
+                return (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-medium">{nameOf(o.employeeId)}</TableCell>
+                    <TableCell>{o.customer}</TableCell>
+                    <TableCell>{o.project}</TableCell>
+                    <TableCell className="text-right">{o.workload}%</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="secondary">{o.probability}%</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{fmtDate(o.start)} → {fmtDate(o.end)}</TableCell>
+                    <TableCell>
+                      {(!emp || canEdit(emp.teamId)) && (
+                        <div className="flex justify-end gap-1">
+                          <Button size="icon" variant="ghost" title="Convert to booking"
+                            onClick={() => { convertOpportunity(o.id); toast.success("Converted to booking"); }}>
+                            <ArrowRightCircle className="size-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => { setOEdit(o); setOOpen(true); }}>
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => { deleteOpportunity(o.id); toast.success("Opportunity deleted"); }}>
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -209,7 +222,7 @@ export function DataTab() {
         open={empOpen}
         onOpenChange={setEmpOpen}
         title={empEdit ? "Edit employee" : "New employee"}
-        initial={empEdit ? { name: empEdit.name, role: empEdit.role } : undefined}
+        initial={empEdit ? { name: empEdit.name, role: empEdit.role, teamId: empEdit.teamId } : undefined}
         onSubmit={(v: EmployeeFormValue) => {
           if (empEdit) {
             updateEmployee({ id: empEdit.id, ...v });
