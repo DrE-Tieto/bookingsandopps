@@ -22,12 +22,7 @@ const HORIZON_OPTIONS = [
   { label: "24 months", months: 24 },
 ];
 
-function bookingColor(p: number) {
-  if (p >= 90) return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300";
-  if (p >= 50) return "bg-amber-500/20 text-amber-700 dark:text-amber-300";
-  return "bg-red-500/20 text-red-700 dark:text-red-300";
-}
-function oppColor(p: number) {
+function cellColor(p: number) {
   if (p >= 100) return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300";
   if (p >= 50) return "bg-amber-500/20 text-amber-700 dark:text-amber-300";
   return "bg-red-500/20 text-red-700 dark:text-red-300";
@@ -266,7 +261,7 @@ export function AvailabilityTab() {
                         return (
                           <td key={`b-${c.key}`} className="border-l p-1">
                             <div className={cn("rounded px-1 py-1.5 text-center text-xs font-semibold",
-                              val === null ? "bg-muted/40 text-muted-foreground" : bookingColor(val))}>
+                              val === null ? "bg-muted/40 text-muted-foreground" : cellColor(val))}>
                               {val === null ? "N/A" : `${Math.round(val)}%`}
                             </div>
                           </td>
@@ -307,7 +302,7 @@ export function AvailabilityTab() {
                         return (
                           <td key={`f-${c.key}`} className="border-l p-1">
                             <div className={cn("rounded px-1 py-1.5 text-center text-xs font-semibold",
-                              val === null ? "bg-muted/40 text-muted-foreground" : oppColor(val))}>
+                              val === null ? "bg-muted/40 text-muted-foreground" : cellColor(val))}>
                               {val === null ? "N/A" : `${Math.round(val)}%`}
                             </div>
                           </td>
@@ -395,22 +390,14 @@ function EmployeeDetails({ employee }: { employee: Employee }) {
 function Legend({ viewMode }: { viewMode: ViewMode }) {
   return (
     <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-      {(viewMode === 'booking' || viewMode === 'both') && (
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-foreground">Booking:</span>
-          <Swatch className="bg-red-500/30" /> &lt;50%
-          <Swatch className="bg-amber-500/30" /> 50–90%
-          <Swatch className="bg-emerald-500/30" /> ≥90%
-        </div>
-      )}
-      {(viewMode === 'forecast' || viewMode === 'both') && (
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-foreground">Forecast (bookings + Σ opp × probability):</span>
-          <Swatch className="bg-red-500/30" /> &lt;50%
-          <Swatch className="bg-amber-500/30" /> 50–100%
-          <Swatch className="bg-emerald-500/30" /> &gt;100%
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        {viewMode === 'forecast' && <span className="font-medium text-foreground">Forecast (bookings + Σ opp × probability):</span>}
+        {viewMode === 'booking' && <span className="font-medium text-foreground">Booking:</span>}
+        {viewMode === 'both' && <span className="font-medium text-foreground">Both views:</span>}
+        <Swatch className="bg-red-500/30" /> &lt;50%
+        <Swatch className="bg-amber-500/30" /> 50–99%
+        <Swatch className="bg-emerald-500/30" /> ≥100%
+      </div>
     </div>
   );
 }
