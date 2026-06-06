@@ -347,9 +347,13 @@ function EmployeeDetails({ employee }: { employee: Employee }) {
             {empB.map((b) => (
               <li key={b.id} className="flex items-center justify-between rounded bg-background border px-3 py-2">
                 <div>
-                  <div className="text-sm font-medium">{b.project}</div>
+                  <div className="text-sm font-medium">
+                    {b.type === 'vacation' ? 'Vacation' : (b.project || '—')}
+                  </div>
                   <div className="text-xs text-muted-foreground">
-                    {b.customer} · {fmtDate(b.start)} → {fmtDate(b.end)}
+                    {b.type === 'vacation'
+                      ? `${fmtDate(b.start)} → ${fmtDate(b.end)}`
+                      : `${b.customer} · ${fmtDate(b.start)} → ${fmtDate(b.end)}`}
                   </div>
                 </div>
                 <div className="text-sm font-semibold">{b.workload}%</div>
