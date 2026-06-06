@@ -26,7 +26,10 @@ function InnerIndex() {
   const { employees: _e, isLoading, teams, selectedTeamId, setSelectedTeamId } = useDashboard();
   const { user, profile, signOut } = useAuth();
 
-  if (isLoading) {
+  // Only show full-screen loading on the very first load (no teams yet).
+  // Subsequent loads (e.g. team switches) keep the UI mounted so the
+  // active tab doesn't reset.
+  if (isLoading && teams.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
