@@ -7,7 +7,7 @@ export interface UserProfile {
   email: string;
   fullName: string;
   teamId: string | null;
-  role: "team_lead" | "department_head";
+  role: "team_lead" | "department_head" | "observer";
 }
 
 interface AuthCtx {
@@ -20,7 +20,7 @@ interface AuthCtx {
     password: string,
     fullName: string,
     teamId: string | null,
-    role: "team_lead" | "department_head"
+    role: "team_lead" | "department_head" | "observer"
   ) => Promise<string | null>;
   signOut: () => Promise<void>;
 }

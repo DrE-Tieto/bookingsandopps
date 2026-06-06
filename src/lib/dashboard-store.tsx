@@ -254,6 +254,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const canEdit = (employeeTeamId: string): boolean => {
     if (!profile) return false;
+    if (profile.role === "observer") return false;
     if (profile.role === "department_head") return true;
     return profile.teamId === employeeTeamId;
   };
