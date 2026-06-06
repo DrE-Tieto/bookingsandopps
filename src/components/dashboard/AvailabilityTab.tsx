@@ -39,10 +39,13 @@ function isInWindow(emp: Employee, rangeStart: Date, rangeEnd: Date): boolean {
   return true;
 }
 
+type ViewMode = 'both' | 'booking' | 'forecast';
+
 export function AvailabilityTab() {
   const { employees: allEmployees, bookings, opportunities } = useDashboard();
   const employees = allEmployees.filter((e) => e.active);
   const [horizonMonths, setHorizonMonths] = useState(6);
+  const [viewMode, setViewMode] = useState<ViewMode>('both');
   const weeks = useMemo(() => buildWeeks(new Date(), Math.ceil(horizonMonths * 4.345)), [horizonMonths]);
   const months = useMemo(() => groupByMonth(weeks), [weeks]);
 
@@ -165,6 +168,18 @@ export function AvailabilityTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex rounded-md border overflow-hidden text-sm">
+            {(['booking', 'forecast', 'both'] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                className={cn("px-3 py-1.5 capitalize border-l first:border-l-0 transition-colors",
+                  viewMode === mode ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+                onClick={() => setViewMode(mode)}
+              >
+                {mode === 'both' ? 'Both' : mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </button>
+            ))}
+          </div>
           <Select value={String(horizonMonths)} onValueChange={(v) => setHorizonMonths(Number(v))}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
@@ -221,70 +236,86 @@ export function AvailabilityTab() {
               const open = expandedEmployees.has(emp.id);
               return (
                 <Fragment key={emp.id}>
-                  {/* Booking row */}
-                  <tr className="border-b hover:bg-muted/30">
-                    <td
-                      className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r cursor-pointer"
-                      onClick={() => toggleEmployee(emp.id)}
-                    >
-                      <div className="flex items-start gap-2">
-                        {open ? <ChevronDown className="size-4 mt-0.5" /> : <ChevronRight className="size-4 mt-0.5" />}
-                        <div>
-                          <div className="font-medium">{emp.name}</div>
-                          <div className="text-xs text-muted-foreground">{emp.role}</div>
+                  {/* Booking row — shown in 'booking' or 'both' mode */}
+                  {(viewMode === 'booking' || viewMode === 'both') && (
+                    <tr className="border-b hover:bg-muted/30">
+                      <td
+                        className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r cursor-pointer"
+                        onClick={() => toggleEmployee(emp.id)}
+                      >
+                        <div className="flex items-start gap-2">
+                          {open ? <ChevronDown className="size-4 mt-0.5" /> : <ChevronRight className="size-4 mt-0.5" />}
+                          <div>
+                            <div className="font-medium">{emp.name}</div>
+                            <div className="text-xs text-muted-foreground">{emp.role}</div>
+                            {viewMode === 'both' && (
+                              <div className="text-[10px] text-muted-foreground mt-0.5">Booking</div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    {visibleCols.map((c) => {
-                      const rs = c.kind === "week" ? c.rangeStart : c.parts[0]?.rangeStart ?? new Date();
-                      const re = c.kind === "week" ? c.rangeEnd : c.parts[c.parts.length - 1]?.rangeEnd ?? new Date();
-                      const inWindow = isInWindow(emp, rs, re);
-                      const val = inWindow
-                        ? c.kind === "week"
-                          ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd)
-                          : aggregateParts(emp.id, c.parts, bookingForRange)
-                        : null;
-                      return (
-                        <td key={`b-${c.key}`} className="border-l p-1">
-                          <div className={cn("rounded px-1 py-1 text-center text-xs font-medium",
-                            val === null ? "bg-muted/40 text-muted-foreground" : bookingColor(val))}>
-                            {val === null ? "N/A" : `${Math.round(val)}%`}
+                      </td>
+                      {visibleCols.map((c) => {
+                        const rs = c.kind === "week" ? c.rangeStart : c.parts[0]?.rangeStart ?? new Date();
+                        const re = c.kind === "week" ? c.rangeEnd : c.parts[c.parts.length - 1]?.rangeEnd ?? new Date();
+                        const inWindow = isInWindow(emp, rs, re);
+                        const val = inWindow
+                          ? c.kind === "week"
+                            ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd)
+                            : aggregateParts(emp.id, c.parts, bookingForRange)
+                          : null;
+                        return (
+                          <td key={`b-${c.key}`} className="border-l p-1">
+                            <div className={cn("rounded px-1 py-1.5 text-center text-xs font-semibold",
+                              val === null ? "bg-muted/40 text-muted-foreground" : bookingColor(val))}>
+                              {val === null ? "N/A" : `${Math.round(val)}%`}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  )}
+                  {/* Forecast row — shown in 'forecast' or 'both' mode */}
+                  {(viewMode === 'forecast' || viewMode === 'both') && (
+                    <tr className="border-b hover:bg-muted/30">
+                      <td
+                        className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r cursor-pointer"
+                        onClick={() => viewMode === 'forecast' ? toggleEmployee(emp.id) : undefined}
+                      >
+                        {viewMode === 'forecast' ? (
+                          <div className="flex items-start gap-2">
+                            {open ? <ChevronDown className="size-4 mt-0.5" /> : <ChevronRight className="size-4 mt-0.5" />}
+                            <div>
+                              <div className="font-medium">{emp.name}</div>
+                              <div className="text-xs text-muted-foreground">{emp.role}</div>
+                            </div>
                           </div>
-                          {c.kind === "week" ? null : (
-                            <div className="text-[10px] text-muted-foreground text-center mt-0.5">Booking</div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  {/* Forecast row */}
-                  <tr className="border-b hover:bg-muted/30">
-                    <td className="px-3 py-2 align-top sticky left-0 bg-card z-10 border-r" />
-                    {visibleCols.map((c) => {
-                      const rs = c.kind === "week" ? c.rangeStart : c.parts[0]?.rangeStart ?? new Date();
-                      const re = c.kind === "week" ? c.rangeEnd : c.parts[c.parts.length - 1]?.rangeEnd ?? new Date();
-                      const inWindow = isInWindow(emp, rs, re);
-                      const forecastFn = (id: string, rs: Date, re: Date) =>
-                        bookingForRange(id, rs, re) + oppForRange(id, rs, re);
-                      const val = inWindow
-                        ? c.kind === "week"
-                          ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd) + oppForRange(emp.id, c.rangeStart, c.rangeEnd)
-                          : aggregateParts(emp.id, c.parts, forecastFn)
-                        : null;
-                      return (
-                        <td key={`f-${c.key}`} className="border-l p-1">
-                          <div className={cn("rounded px-1 py-1 text-center text-xs font-medium",
-                            val === null ? "bg-muted/40 text-muted-foreground" : oppColor(val))}>
-                            {val === null ? "N/A" : `${Math.round(val)}%`}
-                          </div>
-                          {c.kind === "week" ? null : (
-                            <div className="text-[10px] text-muted-foreground text-center mt-0.5">Forecast</div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  {open && (
+                        ) : (
+                          <div className="text-[10px] text-muted-foreground pl-6">Forecast</div>
+                        )}
+                      </td>
+                      {visibleCols.map((c) => {
+                        const rs = c.kind === "week" ? c.rangeStart : c.parts[0]?.rangeStart ?? new Date();
+                        const re = c.kind === "week" ? c.rangeEnd : c.parts[c.parts.length - 1]?.rangeEnd ?? new Date();
+                        const inWindow = isInWindow(emp, rs, re);
+                        const forecastFn = (id: string, rs: Date, re: Date) =>
+                          bookingForRange(id, rs, re) + oppForRange(id, rs, re);
+                        const val = inWindow
+                          ? c.kind === "week"
+                            ? bookingForRange(emp.id, c.rangeStart, c.rangeEnd) + oppForRange(emp.id, c.rangeStart, c.rangeEnd)
+                            : aggregateParts(emp.id, c.parts, forecastFn)
+                          : null;
+                        return (
+                          <td key={`f-${c.key}`} className="border-l p-1">
+                            <div className={cn("rounded px-1 py-1.5 text-center text-xs font-semibold",
+                              val === null ? "bg-muted/40 text-muted-foreground" : oppColor(val))}>
+                              {val === null ? "N/A" : `${Math.round(val)}%`}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  )}
+                  {open && (viewMode === 'booking' || viewMode === 'both' || viewMode === 'forecast') && (
                     <tr className="border-b bg-muted/20">
                       <td colSpan={visibleCols.length + 1} className="px-4 py-3">
                         <EmployeeDetails employee={emp} />
@@ -298,7 +329,7 @@ export function AvailabilityTab() {
         </table>
       </div>
 
-      <Legend />
+      <Legend viewMode={viewMode} />
     </div>
   );
 }
@@ -361,21 +392,25 @@ function EmployeeDetails({ employee }: { employee: Employee }) {
   );
 }
 
-function Legend() {
+function Legend({ viewMode }: { viewMode: ViewMode }) {
   return (
     <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <span className="font-medium text-foreground">Bookings:</span>
-        <Swatch className="bg-red-500/30" /> &lt;50%
-        <Swatch className="bg-amber-500/30" /> 50–90%
-        <Swatch className="bg-emerald-500/30" /> ≥90%
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="font-medium text-foreground">Forecast (bookings + Σ opp × probability):</span>
-        <Swatch className="bg-red-500/30" /> &lt;50%
-        <Swatch className="bg-amber-500/30" /> 50–100%
-        <Swatch className="bg-emerald-500/30" /> &gt;100%
-      </div>
+      {(viewMode === 'booking' || viewMode === 'both') && (
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-foreground">Booking:</span>
+          <Swatch className="bg-red-500/30" /> &lt;50%
+          <Swatch className="bg-amber-500/30" /> 50–90%
+          <Swatch className="bg-emerald-500/30" /> ≥90%
+        </div>
+      )}
+      {(viewMode === 'forecast' || viewMode === 'both') && (
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-foreground">Forecast (bookings + Σ opp × probability):</span>
+          <Swatch className="bg-red-500/30" /> &lt;50%
+          <Swatch className="bg-amber-500/30" /> 50–100%
+          <Swatch className="bg-emerald-500/30" /> &gt;100%
+        </div>
+      )}
     </div>
   );
 }
