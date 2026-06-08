@@ -134,7 +134,10 @@ export function AvailabilityTab() {
       const frac = rangeOverlapFraction(rs, re, b.start, b.end);
       if (frac > 0) total += b.workload * frac;
     }
-    return total;
+    // Vacation is a capacity constraint — cap display at 100%.
+    // The underlying data is preserved for rate/revenue calculations later:
+    // revenue = billable bookings × rate × (working days − vacation days).
+    return Math.min(total, 100);
   }
   function oppForRange(empId: string, rs: Date, re: Date) {
     let total = 0;

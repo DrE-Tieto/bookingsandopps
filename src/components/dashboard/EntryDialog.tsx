@@ -77,7 +77,16 @@ export function EntryDialog({ open, onOpenChange, title, employees, initial, wit
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label>Workload %</Label>
-              <Input type="number" min={0} max={100} value={v.workload} onChange={(e) => setV({ ...v, workload: Number(e.target.value) })} />
+              <Input
+                type="number" min={0} max={100}
+                value={v.type === 'vacation' ? 100 : v.workload}
+                disabled={v.type === 'vacation'}
+                onChange={(e) => setV({ ...v, workload: Number(e.target.value) })}
+                className={v.type === 'vacation' ? 'opacity-50 cursor-not-allowed' : ''}
+              />
+              {v.type === 'vacation' && (
+                <p className="text-xs text-muted-foreground">Vacation is always 100%</p>
+              )}
             </div>
             {withProbability && (
               <div className="grid gap-1.5">
@@ -89,7 +98,10 @@ export function EntryDialog({ open, onOpenChange, title, employees, initial, wit
           {!withProbability && (
             <div className="grid gap-1.5">
               <Label>Type</Label>
-              <Select value={v.type ?? 'billable'} onValueChange={(val) => setV({ ...v, type: val as 'billable' | 'internal' | 'vacation' })}>
+              <Select value={v.type ?? 'billable'} onValueChange={(val) => {
+                const type = val as 'billable' | 'internal' | 'vacation';
+                setV({ ...v, type, workload: type === 'vacation' ? 100 : v.workload });
+              }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="billable">Billable</SelectItem>
