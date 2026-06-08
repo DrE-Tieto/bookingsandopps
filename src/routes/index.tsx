@@ -5,6 +5,7 @@ import { AvailabilityTab } from "@/components/dashboard/AvailabilityTab";
 import { DataTab } from "@/components/dashboard/DataTab";
 import { RiskTab } from "@/components/dashboard/RiskTab";
 import { ReportingTab } from "@/components/dashboard/ReportingTab";
+import { TeamTab } from "@/components/dashboard/TeamTab";
 import { BenchAlerts } from "@/components/dashboard/BenchAlerts";
 import { Toaster } from "@/components/ui/sonner";
 import { Users, LogOut } from "lucide-react";
@@ -78,6 +79,7 @@ function InnerIndex() {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="data">Bookings & Opportunities</TabsTrigger>
+            <TabsTrigger value="team">Team</TabsTrigger>
             <TabsTrigger value="reporting">Reporting</TabsTrigger>
             <TabsTrigger value="risk">Risk</TabsTrigger>
           </TabsList>
@@ -87,6 +89,9 @@ function InnerIndex() {
           </TabsContent>
           <TabsContent value="data" className="mt-4">
             <DataTab />
+          </TabsContent>
+          <TabsContent value="team" className="mt-4">
+            <TeamTab />
           </TabsContent>
           <TabsContent value="reporting" className="mt-4">
             <ReportingTab />
