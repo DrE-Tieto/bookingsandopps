@@ -24,7 +24,7 @@ const HORIZON_OPTIONS = [
 
 function cellColor(p: number) {
   if (p >= 99.5) return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300";
-  if (p >= 50) return "bg-amber-500/20 text-amber-700 dark:text-amber-300";
+  if (p >= 49.5) return "bg-amber-500/20 text-amber-700 dark:text-amber-300";
   return "bg-red-500/20 text-red-700 dark:text-red-300";
 }
 
