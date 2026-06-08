@@ -1,18 +1,13 @@
-import { addMonths, startOfMonth, endOfMonth, format, eachWeekOfInterval, startOfISOWeek, endOfISOWeek, max as dmax, min as dmin, parseISO, differenceInCalendarDays } from "date-fns";
+import { addMonths, startOfMonth, endOfMonth, format, startOfISOWeek, parseISO } from "date-fns";
 import type { Booking, Opportunity } from "./dashboard-store";
+import { workingDaysCount } from "./week-utils";
 
 export const RISK_MONTHS = 12;
 
-function weeklyOverlapFraction(ws: Date, we: Date, startISO: string, endISO: string) {
-  const s = parseISO(startISO);
-  const e = parseISO(endISO);
-  if (e < ws || s > we) return 0;
-  const os = dmax([s, ws]);
-  const oe = dmin([e, we]);
-  const days = differenceInCalendarDays(oe, os) + 1;
-  return Math.max(0, Math.min(7, days)) / 7;
-}
-
+/**
+ * Average availability (0–100) for an employee over all working days in the month.
+ * Uses day-by-day iteration so weekends are excluded cleanly.
+ */
 export function monthlyAvailability(
   empId: string,
   monthStart: Date,
@@ -21,39 +16,42 @@ export function monthlyAvailability(
 ): number {
   const mStart = startOfMonth(monthStart);
   const mEnd = endOfMonth(monthStart);
-  const weekStarts = eachWeekOfInterval(
-    { start: startOfISOWeek(mStart), end: mEnd },
-    { weekStartsOn: 1 },
-  );
-  let sum = 0;
-  let totalW = 0;
-  for (const ws of weekStarts) {
-    const wStart = startOfISOWeek(ws);
-    const wEnd = endOfISOWeek(ws);
-    const inStart = dmax([wStart, mStart]);
-    const inEnd = dmin([wEnd, mEnd]);
-    if (inEnd < inStart) continue;
-    const daysInMonth = differenceInCalendarDays(inEnd, inStart) + 1;
-    const w = Math.max(0, Math.min(7, daysInMonth)) / 7;
-    if (w <= 0) continue;
-    let booked = 0;
-    let opp = 0;
-    for (const b of bookings) {
-      if (b.employeeId !== empId) continue;
-      const f = weeklyOverlapFraction(wStart, wEnd, b.start, b.end);
-      if (f > 0) booked += b.workload * f;
+
+  // Pre-parse booking/opportunity date ranges for this employee
+  const empBookings = bookings
+    .filter(b => b.employeeId === empId)
+    .map(b => ({ workload: b.workload, s: parseISO(b.start), e: parseISO(b.end) }));
+
+  const empOpps = opportunities
+    .flatMap(o => {
+      const m = o.members.find(m => m.employeeId === empId);
+      if (!m) return [];
+      return [{ workload: m.workload * o.probability / 100, s: parseISO(o.start), e: parseISO(o.end) }];
+    });
+
+  let totalDays = 0;
+  let availSum = 0;
+
+  const d = new Date(mStart);
+  d.setHours(0, 0, 0, 0);
+
+  while (d <= mEnd) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) { // Mon–Fri only
+      totalDays++;
+      let booked = 0;
+      for (const b of empBookings) {
+        if (d >= b.s && d <= b.e) booked += b.workload;
+      }
+      for (const o of empOpps) {
+        if (d >= o.s && d <= o.e) booked += o.workload;
+      }
+      availSum += Math.max(0, 100 - booked);
     }
-    for (const o of opportunities) {
-      const member = o.members.find(m => m.employeeId === empId);
-      if (!member) continue;
-      const f = weeklyOverlapFraction(wStart, wEnd, o.start, o.end);
-      if (f > 0) opp += (member.workload * o.probability / 100) * f;
-    }
-    const avail = Math.max(0, 100 - (booked + opp));
-    sum += avail * w;
-    totalW += w;
+    d.setDate(d.getDate() + 1);
   }
-  return totalW ? sum / totalW : 0;
+
+  return totalDays > 0 ? availSum / totalDays : 0;
 }
 
 export interface EmployeeRisk {
