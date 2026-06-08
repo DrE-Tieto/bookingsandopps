@@ -29,15 +29,22 @@ export interface Booking {
   type: 'billable' | 'internal' | 'vacation';
 }
 
+export interface OpportunityMember {
+  id: string;
+  opportunityId: string;
+  employeeId: string;
+  workload: number;
+  isCritical: boolean;
+}
+
 export interface Opportunity {
   id: string;
-  employeeId: string;
   customer: string;
   project: string;
-  workload: number;
   probability: number;
   start: string;
   end: string;
+  members: OpportunityMember[];
 }
 
 interface Ctx {
@@ -55,10 +62,13 @@ interface Ctx {
   addBooking: (b: Omit<Booking, "id">) => Promise<string | null>;
   updateBooking: (b: Booking) => Promise<string | null>;
   deleteBooking: (id: string) => Promise<string | null>;
-  addOpportunity: (o: Omit<Opportunity, "id">) => Promise<string | null>;
-  updateOpportunity: (o: Opportunity) => Promise<string | null>;
+  addOpportunity: (o: Omit<Opportunity, 'id' | 'members'>) => Promise<string | null>;
+  updateOpportunity: (o: Omit<Opportunity, 'members'>) => Promise<string | null>;
   deleteOpportunity: (id: string) => Promise<string | null>;
   convertOpportunity: (id: string) => Promise<string | null>;
+  addOpportunityMember: (m: Omit<OpportunityMember, 'id'>) => Promise<string | null>;
+  updateOpportunityMember: (m: OpportunityMember) => Promise<string | null>;
+  deleteOpportunityMember: (id: string) => Promise<string | null>;
 }
 
 const DashboardContext = createContext<Ctx | null>(null);
@@ -131,33 +141,37 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   });
 
   const { data: opportunities = [] } = useQuery({
-    queryKey: ["opportunities", selectedTeamId],
+    queryKey: ['opportunities', selectedTeamId],
     queryFn: async () => {
-      let query = supabase.from("opportunities").select("*");
-      if (selectedTeamId) {
-        const { data: emps } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("team_id", selectedTeamId);
-        const ids = (emps ?? []).map((e: { id: string }) => e.id);
-        if (ids.length === 0) return [];
-        query = query.in("employee_id", ids);
-      }
-      const { data } = await query;
-      return (data ?? []).map((o: {
-        id: string; employee_id: string; customer: string; project: string;
-        workload_pct: number; probability: number; start_date: string; end_date: string;
-      }) => ({
+      const { data } = await supabase
+        .from('opportunities')
+        .select('*, opportunity_members(id, employee_id, workload_pct, is_critical)')
+        .order('start_date');
+
+      const opps = (data ?? []).map((o: any) => ({
         id: o.id,
-        employeeId: o.employee_id,
         customer: o.customer,
         project: o.project,
-        workload: o.workload_pct,
         probability: o.probability,
         start: o.start_date,
         end: o.end_date,
+        members: (o.opportunity_members ?? []).map((m: any) => ({
+          id: m.id,
+          opportunityId: o.id,
+          employeeId: m.employee_id,
+          workload: m.workload_pct,
+          isCritical: m.is_critical,
+        })),
       }));
+
+      // Filter by team if selectedTeamId is set
+      if (selectedTeamId) {
+        const empIds = employees.map(e => e.id);
+        return opps.filter((o: Opportunity) => o.members.some(m => empIds.includes(m.employeeId)));
+      }
+      return opps;
     },
+    enabled: !selectedTeamId || employees.length > 0,
   });
 
   const addEmployee = async (e: Omit<Employee, "id">): Promise<string | null> => {
@@ -212,44 +226,70 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null;
   };
 
-  const addOpportunity = async (o: Omit<Opportunity, "id">): Promise<string | null> => {
-    const { error } = await supabase.from("opportunities").insert({
-      employee_id: o.employeeId, customer: o.customer, project: o.project,
-      workload_pct: o.workload, probability: o.probability, start_date: o.start, end_date: o.end,
-    });
-    if (!error) queryClient.invalidateQueries({ queryKey: ["opportunities"] });
-    return error?.message ?? null;
+  const addOpportunity = async (o: Omit<Opportunity, 'id' | 'members'>): Promise<string | null> => {
+    const { data, error } = await supabase.from('opportunities').insert({
+      customer: o.customer, project: o.project, probability: o.probability,
+      start_date: o.start, end_date: o.end,
+    }).select('id').single();
+    if (error) return null;
+    queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+    return data.id;
   };
 
-  const updateOpportunity = async (o: Opportunity): Promise<string | null> => {
-    const { error } = await supabase.from("opportunities").update({
-      employee_id: o.employeeId, customer: o.customer, project: o.project,
-      workload_pct: o.workload, probability: o.probability, start_date: o.start, end_date: o.end,
-    }).eq("id", o.id);
-    if (!error) queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+  const updateOpportunity = async (o: Omit<Opportunity, 'members'>): Promise<string | null> => {
+    const { error } = await supabase.from('opportunities').update({
+      customer: o.customer, project: o.project, probability: o.probability,
+      start_date: o.start, end_date: o.end,
+    }).eq('id', o.id);
+    if (!error) queryClient.invalidateQueries({ queryKey: ['opportunities'] });
     return error?.message ?? null;
   };
 
   const deleteOpportunity = async (id: string): Promise<string | null> => {
-    const { error } = await supabase.from("opportunities").delete().eq("id", id);
-    if (!error) queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+    const { error } = await supabase.from('opportunities').delete().eq('id', id);
+    if (!error) queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+    return error?.message ?? null;
+  };
+
+  const addOpportunityMember = async (m: Omit<OpportunityMember, 'id'>): Promise<string | null> => {
+    const { error } = await supabase.from('opportunity_members').insert({
+      opportunity_id: m.opportunityId, employee_id: m.employeeId,
+      workload_pct: m.workload, is_critical: m.isCritical,
+    });
+    if (!error) queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+    return error?.message ?? null;
+  };
+
+  const updateOpportunityMember = async (m: OpportunityMember): Promise<string | null> => {
+    const { error } = await supabase.from('opportunity_members').update({
+      workload_pct: m.workload, is_critical: m.isCritical,
+    }).eq('id', m.id);
+    if (!error) queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+    return error?.message ?? null;
+  };
+
+  const deleteOpportunityMember = async (id: string): Promise<string | null> => {
+    const { error } = await supabase.from('opportunity_members').delete().eq('id', id);
+    if (!error) queryClient.invalidateQueries({ queryKey: ['opportunities'] });
     return error?.message ?? null;
   };
 
   const convertOpportunity = async (id: string): Promise<string | null> => {
-    const opp = opportunities.find((o) => o.id === id);
-    if (!opp) return "Opportunity not found";
-    const { error } = await supabase.from("bookings").insert({
-      employee_id: opp.employeeId, customer: opp.customer, project: opp.project,
-      workload_pct: opp.workload, start_date: opp.start, end_date: opp.end, type: 'billable',
-    });
-    if (error) return error.message;
-    const { error: delErr } = await supabase.from("opportunities").delete().eq("id", id);
-    if (!delErr) {
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+    const opp = opportunities.find(o => o.id === id);
+    if (!opp) return 'Opportunity not found';
+    for (const m of opp.members) {
+      const { error } = await supabase.from('bookings').insert({
+        employee_id: m.employeeId, customer: opp.customer, project: opp.project,
+        workload_pct: m.workload, start_date: opp.start, end_date: opp.end, type: 'billable',
+      });
+      if (error) return error.message;
     }
-    return delErr?.message ?? null;
+    const { error } = await supabase.from('opportunities').delete().eq('id', id);
+    if (!error) {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+    }
+    return error?.message ?? null;
   };
 
   const canEdit = (employeeTeamId: string): boolean => {
@@ -280,6 +320,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         updateOpportunity,
         deleteOpportunity,
         convertOpportunity,
+        addOpportunityMember,
+        updateOpportunityMember,
+        deleteOpportunityMember,
       }}
     >
       {children}

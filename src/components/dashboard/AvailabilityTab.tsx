@@ -139,9 +139,10 @@ export function AvailabilityTab() {
   function oppForRange(empId: string, rs: Date, re: Date) {
     let total = 0;
     for (const o of opportunities) {
-      if (o.employeeId !== empId) continue;
+      const member = o.members.find(m => m.employeeId === empId);
+      if (!member) continue;
       const frac = rangeOverlapFraction(rs, re, o.start, o.end);
-      if (frac > 0) total += (o.workload * o.probability / 100) * frac;
+      if (frac > 0) total += (member.workload * o.probability / 100) * frac;
     }
     return total;
   }
@@ -332,7 +333,7 @@ export function AvailabilityTab() {
 function EmployeeDetails({ employee }: { employee: Employee }) {
   const { bookings, opportunities } = useDashboard();
   const empB = bookings.filter((b) => b.employeeId === employee.id);
-  const empO = opportunities.filter((o) => o.employeeId === employee.id);
+  const empO = opportunities.filter((o) => o.members.some(m => m.employeeId === employee.id));
 
   return (
     <div className="grid md:grid-cols-2 gap-4">
@@ -370,20 +371,23 @@ function EmployeeDetails({ employee }: { employee: Employee }) {
           <div className="text-sm text-muted-foreground">No opportunities.</div>
         ) : (
           <ul className="space-y-1">
-            {empO.map((o) => (
-              <li key={o.id} className="flex items-center justify-between rounded bg-background border px-3 py-2">
-                <div>
-                  <div className="text-sm font-medium">{o.project}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {o.customer} · {fmtDate(o.start)} → {fmtDate(o.end)}
+            {empO.map((o) => {
+              const member = o.members.find(m => m.employeeId === employee.id);
+              return (
+                <li key={o.id} className="flex items-center justify-between rounded bg-background border px-3 py-2">
+                  <div>
+                    <div className="text-sm font-medium">{o.project}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {o.customer} · {fmtDate(o.start)} → {fmtDate(o.end)}
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold">{o.workload}%</div>
-                  <div className="text-xs text-muted-foreground">{o.probability}% likely</div>
-                </div>
-              </li>
-            ))}
+                  <div className="text-right">
+                    <div className="text-sm font-semibold">{member?.workload ?? 0}%</div>
+                    <div className="text-xs text-muted-foreground">{o.probability}% likely</div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

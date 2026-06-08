@@ -44,9 +44,10 @@ export function monthlyAvailability(
       if (f > 0) booked += b.workload * f;
     }
     for (const o of opportunities) {
-      if (o.employeeId !== empId) continue;
+      const member = o.members.find(m => m.employeeId === empId);
+      if (!member) continue;
       const f = weeklyOverlapFraction(wStart, wEnd, o.start, o.end);
-      if (f > 0) opp += (o.workload * o.probability / 100) * f;
+      if (f > 0) opp += (member.workload * o.probability / 100) * f;
     }
     const avail = Math.max(0, 100 - (booked + opp));
     sum += avail * w;

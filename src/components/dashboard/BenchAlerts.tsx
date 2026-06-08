@@ -20,13 +20,11 @@ export function BenchAlerts() {
         );
 
       const opp = opportunities
-        .filter((o) => o.employeeId === emp.id)
-        .reduce(
-          (sum, o) =>
-            sum +
-            o.workload * (o.probability / 100) * rangeOverlapFraction(week.start, week.end, o.start, o.end),
-          0
-        );
+        .filter(o => o.members.some(m => m.employeeId === emp.id))
+        .reduce((sum, o) => {
+          const member = o.members.find(m => m.employeeId === emp.id)!;
+          return sum + member.workload * (o.probability / 100) * rangeOverlapFraction(week.start, week.end, o.start, o.end);
+        }, 0);
 
       totalForecast += booking + opp;
       count++;

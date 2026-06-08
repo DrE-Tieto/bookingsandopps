@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, ArrowRightCircle, PowerOff, Power } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRightCircle, PowerOff, Power, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useDashboard, type Booking, type Opportunity } from "@/lib/dashboard-store";
 import { EntryDialog, type EntryFormValue } from "./EntryDialog";
 import { EmployeeDialog, type EmployeeFormValue } from "./EmployeeDialog";
+import { OpportunityDialog, type OpportunityFormValue } from "./OpportunityDialog";
 import { fmtDate } from "@/lib/week-utils";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export function DataTab() {
   const {
@@ -16,6 +18,7 @@ export function DataTab() {
     addBooking, updateBooking, deleteBooking,
     addOpportunity, updateOpportunity, deleteOpportunity,
     convertOpportunity,
+    addOpportunityMember, updateOpportunityMember, deleteOpportunityMember,
     canEdit,
   } = useDashboard();
 
@@ -168,47 +171,55 @@ export function DataTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Project</TableHead>
-                <TableHead className="text-right">Workload</TableHead>
-                <TableHead className="text-right">Probability</TableHead>
+                <TableHead>Members</TableHead>
+                <TableHead className="text-right">Win %</TableHead>
                 <TableHead>Period</TableHead>
                 <TableHead className="w-[140px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {opportunities.map((o) => {
-                const emp = employees.find((e) => e.id === o.employeeId);
-                return (
-                  <TableRow key={o.id}>
-                    <TableCell className="font-medium">{nameOf(o.employeeId)}</TableCell>
-                    <TableCell>{o.customer}</TableCell>
-                    <TableCell>{o.project}</TableCell>
-                    <TableCell className="text-right">{o.workload}%</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="secondary">{o.probability}%</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{fmtDate(o.start)} → {fmtDate(o.end)}</TableCell>
-                    <TableCell>
-                      {(!emp || canEdit(emp.teamId)) && (
-                        <div className="flex justify-end gap-1">
-                          <Button size="icon" variant="ghost" title="Convert to booking"
-                            onClick={async () => { const err = await convertOpportunity(o.id); err ? toast.error(err) : toast.success("Converted to booking"); }}>
-                            <ArrowRightCircle className="size-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" onClick={() => { setOEdit(o); setOOpen(true); }}>
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" onClick={async () => { const err = await deleteOpportunity(o.id); err ? toast.error(err) : toast.success("Opportunity deleted"); }}>
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {opportunities.map((o) => (
+                <TableRow key={o.id}>
+                  <TableCell className="font-medium">{o.customer}</TableCell>
+                  <TableCell>{o.project}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {o.members.map(m => {
+                        const emp = employees.find(e => e.id === m.employeeId);
+                        return (
+                          <span key={m.id} className={cn(
+                            "inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-xs",
+                            m.isCritical ? "text-amber-600 border-amber-300 bg-amber-50" : "text-muted-foreground"
+                          )}>
+                            {m.isCritical && <Star className="size-3 fill-amber-400 text-amber-400" />}
+                            {emp?.name ?? '—'} {m.workload}%
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Badge variant="secondary">{o.probability}%</Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{fmtDate(o.start)} → {fmtDate(o.end)}</TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-1">
+                      <Button size="icon" variant="ghost" title="Convert to booking"
+                        onClick={async () => { const err = await convertOpportunity(o.id); err ? toast.error(err) : toast.success("Converted to booking"); }}>
+                        <ArrowRightCircle className="size-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => { setOEdit(o); setOOpen(true); }}>
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={async () => { const err = await deleteOpportunity(o.id); err ? toast.error(err) : toast.success("Opportunity deleted"); }}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>
@@ -227,18 +238,36 @@ export function DataTab() {
           err ? toast.error(err) : toast.success(bEdit ? "Booking updated" : "Booking added");
         }}
       />
-      <EntryDialog
+      <OpportunityDialog
         open={oOpen}
         onOpenChange={setOOpen}
         title={oEdit ? "Edit opportunity" : "New opportunity"}
         employees={employees}
-        withProbability
-        initial={oEdit ? { employeeId: oEdit.employeeId, customer: oEdit.customer, project: oEdit.project, workload: oEdit.workload, start: oEdit.start, end: oEdit.end, probability: oEdit.probability } : undefined}
-        onSubmit={async (v: EntryFormValue) => {
-          const err = oEdit
-            ? await updateOpportunity({ ...oEdit, ...v, probability: v.probability ?? 0 })
-            : await addOpportunity({ employeeId: v.employeeId, customer: v.customer, project: v.project, workload: v.workload, start: v.start, end: v.end, probability: v.probability ?? 0 });
-          err ? toast.error(err) : toast.success(oEdit ? "Opportunity updated" : "Opportunity added");
+        initial={oEdit ? {
+          customer: oEdit.customer, project: oEdit.project,
+          probability: oEdit.probability, start: oEdit.start, end: oEdit.end,
+          members: oEdit.members.map(m => ({ employeeId: m.employeeId, workload: m.workload, isCritical: m.isCritical }))
+        } : undefined}
+        onSubmit={async (v: OpportunityFormValue) => {
+          if (oEdit) {
+            const err = await updateOpportunity({ id: oEdit.id, ...v });
+            if (err) { toast.error(err); return; }
+            for (const m of oEdit.members) {
+              await deleteOpportunityMember(m.id);
+            }
+            for (const m of v.members) {
+              await addOpportunityMember({ opportunityId: oEdit.id, ...m });
+            }
+            toast.success('Opportunity updated');
+          } else {
+            const newId = await addOpportunity(v);
+            if (!newId) { toast.error('Failed to create opportunity'); return; }
+            for (const m of v.members) {
+              const err = await addOpportunityMember({ opportunityId: newId, ...m });
+              if (err) { toast.error(err); return; }
+            }
+            toast.success('Opportunity added');
+          }
         }}
       />
       <EmployeeDialog
