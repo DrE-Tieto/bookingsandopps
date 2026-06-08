@@ -40,7 +40,7 @@ export function AvailabilityTab() {
   const { employees: allEmployees, bookings, opportunities } = useDashboard();
   const employees = allEmployees.filter((e) => e.active);
   const [horizonMonths, setHorizonMonths] = useState(6);
-  const [viewMode, setViewMode] = useState<ViewMode>('both');
+  const [viewMode, setViewMode] = useState<ViewMode>('booking');
   const weeks = useMemo(() => buildWeeks(new Date(), Math.ceil(horizonMonths * 4.345)), [horizonMonths]);
   const months = useMemo(() => groupByMonth(weeks), [weeks]);
 
