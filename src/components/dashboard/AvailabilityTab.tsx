@@ -24,7 +24,7 @@ const HORIZON_OPTIONS = [
 
 function cellColor(p: number) {
   if (p > 100) return "bg-purple-500/20 text-purple-700 dark:text-purple-300"; // over-capacity
-  if (p >= 99.5) return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300";
+  if (p >= 89.5) return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300";
   if (p >= 49.5) return "bg-amber-500/20 text-amber-700 dark:text-amber-300";
   return "bg-red-500/20 text-red-700 dark:text-red-300";
 }
@@ -404,8 +404,8 @@ function Legend({ viewMode }: { viewMode: ViewMode }) {
         {viewMode === 'booking' && <span className="font-medium text-foreground">Booking:</span>}
         {viewMode === 'both' && <span className="font-medium text-foreground">Both views:</span>}
         <Swatch className="bg-red-500/30" /> &lt;50%
-        <Swatch className="bg-amber-500/30" /> 50–99%
-        <Swatch className="bg-emerald-500/30" /> 100%
+        <Swatch className="bg-amber-500/30" /> 50–89%
+        <Swatch className="bg-emerald-500/30" /> 90–100%
         <Swatch className="bg-purple-500/30" /> &gt;100%
       </div>
     </div>
