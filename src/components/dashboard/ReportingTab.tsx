@@ -79,7 +79,7 @@ function calcForRange(
     }
   }
 
-  return Math.min(Math.round((numerator / denominator) * 100), 100);
+  return Math.round((numerator / denominator) * 100);
 }
 
 function isInWindow(emp: Employee, rs: Date, re: Date): boolean {

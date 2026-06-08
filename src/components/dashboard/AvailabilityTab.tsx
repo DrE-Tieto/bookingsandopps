@@ -23,6 +23,7 @@ const HORIZON_OPTIONS = [
 ];
 
 function cellColor(p: number) {
+  if (p > 100) return "bg-purple-500/20 text-purple-700 dark:text-purple-300"; // over-capacity
   if (p >= 99.5) return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300";
   if (p >= 49.5) return "bg-amber-500/20 text-amber-700 dark:text-amber-300";
   return "bg-red-500/20 text-red-700 dark:text-red-300";
@@ -134,10 +135,7 @@ export function AvailabilityTab() {
       const frac = rangeOverlapFraction(rs, re, b.start, b.end);
       if (frac > 0) total += b.workload * frac;
     }
-    // Vacation is a capacity constraint — cap display at 100%.
-    // The underlying data is preserved for rate/revenue calculations later:
-    // revenue = billable bookings × rate × (working days − vacation days).
-    return Math.min(total, 100);
+    return total;
   }
   function oppForRange(empId: string, rs: Date, re: Date) {
     let total = 0;
@@ -407,7 +405,8 @@ function Legend({ viewMode }: { viewMode: ViewMode }) {
         {viewMode === 'both' && <span className="font-medium text-foreground">Both views:</span>}
         <Swatch className="bg-red-500/30" /> &lt;50%
         <Swatch className="bg-amber-500/30" /> 50–99%
-        <Swatch className="bg-emerald-500/30" /> ≥100%
+        <Swatch className="bg-emerald-500/30" /> 100%
+        <Swatch className="bg-purple-500/30" /> &gt;100%
       </div>
     </div>
   );
