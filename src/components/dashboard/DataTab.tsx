@@ -1,22 +1,25 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, ArrowRightCircle, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRightCircle, Star, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useDashboard, type Booking, type Opportunity } from "@/lib/dashboard-store";
+import { useDashboard, type Booking, type Opportunity, type Delivery } from "@/lib/dashboard-store";
 import { EntryDialog, type EntryFormValue } from "./EntryDialog";
 import { OpportunityDialog, type OpportunityFormValue } from "./OpportunityDialog";
+import { DeliveryDialog, type DeliveryFormValue } from "./DeliveryDialog";
+import { ConvertOpportunityDialog } from "./ConvertOpportunityDialog";
 import { fmtDate } from "@/lib/week-utils";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export function DataTab() {
   const {
-    employees, bookings, opportunities,
+    employees, bookings, opportunities, deliveries,
     addBooking, updateBooking, deleteBooking,
     addOpportunity, updateOpportunity, deleteOpportunity,
     convertOpportunity,
     addOpportunityMember, deleteOpportunityMember,
+    addDelivery, updateDelivery, deleteDelivery, convertOpportunityToDelivery,
     canEdit,
   } = useDashboard();
 
@@ -24,6 +27,12 @@ export function DataTab() {
   const [bEdit, setBEdit] = useState<Booking | null>(null);
   const [oOpen, setOOpen] = useState(false);
   const [oEdit, setOEdit] = useState<Opportunity | null>(null);
+  const [dOpen, setDOpen] = useState(false);
+  const [dEdit, setDEdit] = useState<Delivery | null>(null);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertOpp, setConvertOpp] = useState<Opportunity | null>(null);
+  const [expandedDeliveries, setExpandedDeliveries] = useState<Set<string>>(new Set());
+  const toggleDelivery = (id: string) => setExpandedDeliveries(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const nameOf = (id: string) => employees.find((e) => e.id === id)?.name ?? "—";
 
@@ -32,8 +41,79 @@ export function DataTab() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <div>
+            <h2 className="text-lg font-semibold">Deliveries</h2>
+            <p className="text-sm text-muted-foreground">Multi-member project bookings.</p>
+          </div>
+          <Button onClick={() => { setDEdit(null); setDOpen(true); }}>
+            <Plus className="size-4 mr-1" /> New delivery
+          </Button>
+        </div>
+        <div className="rounded-lg border bg-card divide-y">
+          {deliveries.length === 0 && (
+            <div className="p-8 text-center text-sm text-muted-foreground">No deliveries yet.</div>
+          )}
+          {deliveries.map(d => {
+            const memberBookings = bookings.filter(b => b.deliveryId === d.id);
+            const expanded = expandedDeliveries.has(d.id);
+            return (
+              <div key={d.id}>
+                <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30">
+                  <button onClick={() => toggleDelivery(d.id)} className="text-muted-foreground">
+                    {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                  </button>
+                  <div className="flex-1">
+                    <div className="font-medium">{d.project}</div>
+                    <div className="text-sm text-muted-foreground">{d.customer} · {memberBookings.length} member{memberBookings.length !== 1 ? 's' : ''}</div>
+                  </div>
+                  <Badge variant="outline" className={
+                    d.type === 'internal' ? "bg-blue-100 text-blue-800 border-blue-200" :
+                    d.type === 'vacation' ? "bg-orange-100 text-orange-800 border-orange-200" :
+                    "bg-emerald-100 text-emerald-800 border-emerald-200"
+                  }>{d.type}</Badge>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      setDEdit(d);
+                      setDOpen(true);
+                    }}><Pencil className="size-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={async () => {
+                      const err = await deleteDelivery(d.id);
+                      err ? toast.error(err) : toast.success('Delivery deleted');
+                    }}><Trash2 className="size-4" /></Button>
+                  </div>
+                </div>
+                {expanded && memberBookings.length > 0 && (
+                  <div className="border-t bg-muted/10">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-xs text-muted-foreground">
+                          <th className="text-left px-8 py-1.5">Employee</th>
+                          <th className="text-right px-4 py-1.5">Workload</th>
+                          <th className="px-4 py-1.5">Period</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {memberBookings.map(b => (
+                          <tr key={b.id} className="border-b last:border-0">
+                            <td className="px-8 py-1.5 font-medium">{nameOf(b.employeeId)}</td>
+                            <td className="px-4 py-1.5 text-right">{b.workload}%</td>
+                            <td className="px-4 py-1.5 text-muted-foreground">{fmtDate(b.start)} → {fmtDate(b.end)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div>
             <h2 className="text-lg font-semibold">Bookings</h2>
-            <p className="text-sm text-muted-foreground">All confirmed work for the team.</p>
+            <p className="text-sm text-muted-foreground">Individual (non-delivery) bookings.</p>
           </div>
           <Button onClick={() => { setBEdit(null); setBOpen(true); }}>
             <Plus className="size-4 mr-1" /> New booking
@@ -53,7 +133,7 @@ export function DataTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bookings.map((b) => {
+              {bookings.filter(b => !b.deliveryId).map((b) => {
                 const emp = employees.find((e) => e.id === b.employeeId);
                 return (
                   <TableRow key={b.id}>
@@ -140,8 +220,8 @@ export function DataTab() {
                   <TableCell className="text-muted-foreground">{fmtDate(o.start)} → {fmtDate(o.end)}</TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" title="Convert to booking"
-                        onClick={async () => { const err = await convertOpportunity(o.id); err ? toast.error(err) : toast.success("Converted to booking"); }}>
+                      <Button size="icon" variant="ghost" title="Convert to delivery"
+                        onClick={() => { setConvertOpp(o); setConvertOpen(true); }}>
                         <ArrowRightCircle className="size-4" />
                       </Button>
                       <Button size="icon" variant="ghost" onClick={() => { setOEdit(o); setOOpen(true); }}>
@@ -202,6 +282,35 @@ export function DataTab() {
             }
             toast.success('Opportunity added');
           }
+        }}
+      />
+      <DeliveryDialog
+        open={dOpen}
+        onOpenChange={setDOpen}
+        title={dEdit ? 'Edit delivery' : 'New delivery'}
+        employees={employees}
+        initial={dEdit ? {
+          customer: dEdit.customer, project: dEdit.project, type: dEdit.type,
+          members: bookings.filter(b => b.deliveryId === dEdit.id).map(b => ({
+            employeeId: b.employeeId, workload: b.workload, start: b.start, end: b.end,
+          })),
+        } : undefined}
+        onSubmit={async (v: DeliveryFormValue) => {
+          const err = dEdit
+            ? await updateDelivery(dEdit, v.members)
+            : await addDelivery(v, v.members);
+          err ? toast.error(err) : toast.success(dEdit ? 'Delivery updated' : 'Delivery created');
+        }}
+      />
+      <ConvertOpportunityDialog
+        open={convertOpen}
+        onOpenChange={setConvertOpen}
+        opportunity={convertOpp}
+        employees={employees}
+        onSubmit={async (v: DeliveryFormValue) => {
+          if (!convertOpp) return;
+          const err = await convertOpportunityToDelivery(convertOpp.id, v, v.members);
+          err ? toast.error(err) : toast.success('Opportunity converted to delivery');
         }}
       />
     </div>

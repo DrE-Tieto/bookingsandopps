@@ -18,6 +18,13 @@ export interface Team {
   name: string;
 }
 
+export interface Delivery {
+  id: string;
+  customer: string;
+  project: string;
+  type: 'billable' | 'internal' | 'vacation';
+}
+
 export interface Booking {
   id: string;
   employeeId: string;
@@ -27,6 +34,7 @@ export interface Booking {
   start: string;
   end: string;
   type: 'billable' | 'internal' | 'vacation';
+  deliveryId?: string;
 }
 
 export interface OpportunityMember {
@@ -51,6 +59,7 @@ interface Ctx {
   employees: Employee[];
   bookings: Booking[];
   opportunities: Opportunity[];
+  deliveries: Delivery[];
   teams: Team[];
   selectedTeamId: string | null;
   setSelectedTeamId: (id: string | null) => void;
@@ -69,6 +78,10 @@ interface Ctx {
   addOpportunityMember: (m: Omit<OpportunityMember, 'id'>) => Promise<string | null>;
   updateOpportunityMember: (m: OpportunityMember) => Promise<string | null>;
   deleteOpportunityMember: (id: string) => Promise<string | null>;
+  addDelivery: (d: Omit<Delivery, 'id'>, members: Array<{employeeId: string; workload: number; start: string; end: string}>) => Promise<string | null>;
+  updateDelivery: (d: Delivery, members: Array<{employeeId: string; workload: number; start: string; end: string}>) => Promise<string | null>;
+  deleteDelivery: (id: string) => Promise<string | null>;
+  convertOpportunityToDelivery: (opportunityId: string, d: Omit<Delivery, 'id'>, members: Array<{employeeId: string; workload: number; start: string; end: string}>) => Promise<string | null>;
 }
 
 const DashboardContext = createContext<Ctx | null>(null);
@@ -126,7 +139,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const { data } = await query;
       return (data ?? []).map((b: {
         id: string; employee_id: string; customer: string; project: string;
-        workload_pct: number; start_date: string; end_date: string;
+        workload_pct: number; start_date: string; end_date: string; delivery_id?: string | null;
       }) => ({
         id: b.id,
         employeeId: b.employee_id,
@@ -136,6 +149,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         start: b.start_date,
         end: b.end_date,
         type: (b.type ?? 'billable') as 'billable' | 'internal' | 'vacation',
+        deliveryId: b.delivery_id ?? undefined,
       }));
     },
   });
@@ -172,6 +186,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       return opps;
     },
     enabled: !selectedTeamId || employees.length > 0,
+  });
+
+  const { data: deliveries = [] } = useQuery({
+    queryKey: ['deliveries'],
+    queryFn: async () => {
+      const { data } = await supabase.from('deliveries').select('*').order('created_at', { ascending: false });
+      return (data ?? []).map((d: any) => ({ id: d.id, customer: d.customer, project: d.project, type: d.type as 'billable' | 'internal' | 'vacation' }));
+    },
   });
 
   const addEmployee = async (e: Omit<Employee, "id">): Promise<string | null> => {
@@ -292,6 +314,64 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null;
   };
 
+  const addDelivery = async (d: Omit<Delivery, 'id'>, members: Array<{employeeId: string; workload: number; start: string; end: string}>): Promise<string | null> => {
+    const { data, error } = await supabase.from('deliveries').insert({ customer: d.customer, project: d.project, type: d.type }).select('id').single();
+    if (error || !data) return error?.message ?? 'Failed to create delivery';
+    const deliveryId = data.id;
+    for (const m of members) {
+      const { error: bErr } = await supabase.from('bookings').insert({
+        employee_id: m.employeeId, customer: d.customer, project: d.project,
+        workload_pct: m.workload, start_date: m.start, end_date: m.end,
+        type: d.type, delivery_id: deliveryId,
+      });
+      if (bErr) return bErr.message;
+    }
+    queryClient.invalidateQueries({ queryKey: ['deliveries'] });
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    return null;
+  };
+
+  const updateDelivery = async (d: Delivery, members: Array<{employeeId: string; workload: number; start: string; end: string}>): Promise<string | null> => {
+    const { error } = await supabase.from('deliveries').update({ customer: d.customer, project: d.project, type: d.type }).eq('id', d.id);
+    if (error) return error.message;
+    // Delete all existing member bookings and re-create
+    const { error: delErr } = await supabase.from('bookings').delete().eq('delivery_id', d.id);
+    if (delErr) return delErr.message;
+    for (const m of members) {
+      const { error: bErr } = await supabase.from('bookings').insert({
+        employee_id: m.employeeId, customer: d.customer, project: d.project,
+        workload_pct: m.workload, start_date: m.start, end_date: m.end,
+        type: d.type, delivery_id: d.id,
+      });
+      if (bErr) return bErr.message;
+    }
+    queryClient.invalidateQueries({ queryKey: ['deliveries'] });
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    return null;
+  };
+
+  const deleteDelivery = async (id: string): Promise<string | null> => {
+    // Cascade in DB deletes member bookings automatically
+    const { error } = await supabase.from('deliveries').delete().eq('id', id);
+    if (!error) {
+      queryClient.invalidateQueries({ queryKey: ['deliveries'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    }
+    return error?.message ?? null;
+  };
+
+  const convertOpportunityToDelivery = async (
+    opportunityId: string,
+    d: Omit<Delivery, 'id'>,
+    members: Array<{employeeId: string; workload: number; start: string; end: string}>
+  ): Promise<string | null> => {
+    const err = await addDelivery(d, members);
+    if (err) return err;
+    const { error } = await supabase.from('opportunities').delete().eq('id', opportunityId);
+    if (!error) queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+    return error?.message ?? null;
+  };
+
   const canEdit = (employeeTeamId: string): boolean => {
     if (!profile) return false;
     if (profile.role === "observer") return false;
@@ -305,6 +385,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         employees,
         bookings,
         opportunities,
+        deliveries,
         teams,
         selectedTeamId,
         setSelectedTeamId,
@@ -323,6 +404,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         addOpportunityMember,
         updateOpportunityMember,
         deleteOpportunityMember,
+        addDelivery,
+        updateDelivery,
+        deleteDelivery,
+        convertOpportunityToDelivery,
       }}
     >
       {children}
