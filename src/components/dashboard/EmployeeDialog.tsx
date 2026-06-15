@@ -14,6 +14,7 @@ export interface EmployeeFormValue {
   availableFrom?: string;
   availableUntil?: string;
   active: boolean;
+  hourlyCost?: number;
 }
 
 interface Props {
@@ -31,12 +32,12 @@ export function EmployeeDialog({ open, onOpenChange, title, initial, onSubmit }:
   const defaultTeamId = profile?.role === "team_lead" ? (profile.teamId ?? "") : "";
 
   const [v, setV] = useState<EmployeeFormValue>(
-    initial ?? { name: "", role: "", teamId: defaultTeamId, availableFrom: "", availableUntil: "", active: true }
+    initial ?? { name: "", role: "", teamId: defaultTeamId, availableFrom: "", availableUntil: "", active: true, hourlyCost: undefined }
   );
 
   useEffect(() => {
     if (open) {
-      setV(initial ?? { name: "", role: "", teamId: defaultTeamId, availableFrom: "", availableUntil: "", active: true });
+      setV(initial ?? { name: "", role: "", teamId: defaultTeamId, availableFrom: "", availableUntil: "", active: true, hourlyCost: undefined });
     }
   }, [open, initial, defaultTeamId]);
 
@@ -93,6 +94,14 @@ export function EmployeeDialog({ open, onOpenChange, title, initial, onSubmit }:
                 onChange={(e) => setV({ ...v, availableUntil: e.target.value || undefined })}
               />
             </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Hourly cost <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input
+              type="number" min={0} step={0.01} placeholder="e.g. 85.00"
+              value={v.hourlyCost ?? ""}
+              onChange={(e) => setV({ ...v, hourlyCost: e.target.value ? Number(e.target.value) : undefined })}
+            />
           </div>
         </div>
         <DialogFooter>

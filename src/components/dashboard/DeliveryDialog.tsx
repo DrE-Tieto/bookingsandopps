@@ -12,6 +12,7 @@ export interface DeliveryMemberValue {
   workload: number;
   start: string;
   end: string;
+  hourlyRate?: number;
 }
 
 export interface DeliveryFormValue {
@@ -94,18 +95,22 @@ export function DeliveryDialog({ open, onOpenChange, title, employees, initial, 
             )}
             {/* Header row */}
             {v.members.length > 0 && (
-              <div className="grid grid-cols-[1fr_60px_130px_130px_32px] gap-2 text-xs text-muted-foreground px-1">
-                <span>Employee</span><span className="text-center">%</span><span>Start</span><span>End</span><span/>
+              <div className="grid grid-cols-[1fr_60px_100px_130px_130px_32px] gap-2 text-xs text-muted-foreground px-1">
+                <span>Employee</span><span className="text-center">%</span><span>Rate/hr</span><span>Start</span><span>End</span><span/>
               </div>
             )}
             {v.members.map(m => {
               const emp = employees.find(e => e.id === m.employeeId);
               return (
-                <div key={m.employeeId} className="grid grid-cols-[1fr_60px_130px_130px_32px] gap-2 items-center rounded border px-3 py-2 bg-muted/20">
+                <div key={m.employeeId} className="grid grid-cols-[1fr_60px_100px_130px_130px_32px] gap-2 items-center rounded border px-3 py-2 bg-muted/20">
                   <span className="text-sm font-medium">{emp?.name ?? '—'}</span>
                   <Input type="number" min={1} max={200} value={m.workload}
                     onChange={e => updateMember(m.employeeId, 'workload', Number(e.target.value))}
                     className="h-7 text-xs text-center px-1" />
+                  <Input type="number" min={0} step={0.01} placeholder="opt."
+                    value={m.hourlyRate ?? ""}
+                    onChange={e => updateMember(m.employeeId, 'hourlyRate', e.target.value ? Number(e.target.value) : "")}
+                    className="h-7 text-xs px-1" />
                   <Input type="date" value={m.start}
                     onChange={e => updateMember(m.employeeId, 'start', e.target.value)}
                     className="h-7 text-xs" />
@@ -122,7 +127,7 @@ export function DeliveryDialog({ open, onOpenChange, title, employees, initial, 
 
             {/* Add member row */}
             {availableEmployees.length > 0 && (
-              <div className="grid grid-cols-[1fr_60px_130px_130px_32px] gap-2 items-center">
+              <div className="grid grid-cols-[1fr_60px_100px_130px_130px_32px] gap-2 items-center">
                 <Select value={newEmpId} onValueChange={setNewEmpId}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Add member…" /></SelectTrigger>
                   <SelectContent>
@@ -132,6 +137,8 @@ export function DeliveryDialog({ open, onOpenChange, title, employees, initial, 
                 <Input type="number" min={1} max={200} value={newWorkload}
                   onChange={e => setNewWorkload(Number(e.target.value))}
                   className="h-8 text-xs text-center px-1" />
+                <Input type="number" min={0} step={0.01} placeholder="opt."
+                  className="h-8 text-xs px-1" />
                 <Input type="date" value={newStart}
                   onChange={e => setNewStart(e.target.value)}
                   className="h-8 text-xs" />

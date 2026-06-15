@@ -88,6 +88,7 @@ export function DataTab() {
                         <tr className="border-b text-xs text-muted-foreground">
                           <th className="text-left px-8 py-1.5">Employee</th>
                           <th className="text-right px-4 py-1.5">Workload</th>
+                          <th className="text-right px-4 py-1.5">Rate/hr</th>
                           <th className="px-4 py-1.5">Period</th>
                         </tr>
                       </thead>
@@ -96,6 +97,7 @@ export function DataTab() {
                           <tr key={b.id} className="border-b last:border-0">
                             <td className="px-8 py-1.5 font-medium">{nameOf(b.employeeId)}</td>
                             <td className="px-4 py-1.5 text-right">{b.workload}%</td>
+                            <td className="px-4 py-1.5 text-right text-muted-foreground">{b.hourlyRate ?? '—'}</td>
                             <td className="px-4 py-1.5 text-muted-foreground">{fmtDate(b.start)} → {fmtDate(b.end)}</td>
                           </tr>
                         ))}
@@ -128,6 +130,7 @@ export function DataTab() {
                 <TableHead>Project</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Workload</TableHead>
+                <TableHead className="text-right">Rate/hr</TableHead>
                 <TableHead>Period</TableHead>
                 <TableHead className="w-[100px]" />
               </TableRow>
@@ -150,6 +153,7 @@ export function DataTab() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">{b.workload}%</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{b.hourlyRate ?? '—'}</TableCell>
                     <TableCell className="text-muted-foreground">{fmtDate(b.start)} → {fmtDate(b.end)}</TableCell>
                     <TableCell>
                       {(!emp || canEdit(emp.teamId)) && (
@@ -244,11 +248,11 @@ export function DataTab() {
         onOpenChange={setBOpen}
         title={bEdit ? "Edit booking" : "New booking"}
         employees={employees}
-        initial={bEdit ? { employeeId: bEdit.employeeId, customer: bEdit.customer, project: bEdit.project, workload: bEdit.workload, start: bEdit.start, end: bEdit.end, type: bEdit.type } : undefined}
+        initial={bEdit ? { employeeId: bEdit.employeeId, customer: bEdit.customer, project: bEdit.project, workload: bEdit.workload, start: bEdit.start, end: bEdit.end, type: bEdit.type, hourlyRate: bEdit.hourlyRate } : undefined}
         onSubmit={async (v: EntryFormValue) => {
           const err = bEdit
-            ? await updateBooking({ ...bEdit, ...v, type: v.type ?? 'billable' })
-            : await addBooking({ employeeId: v.employeeId, customer: v.customer, project: v.project, workload: v.workload, start: v.start, end: v.end, type: v.type ?? 'billable' });
+            ? await updateBooking({ ...bEdit, ...v, type: v.type ?? 'billable', hourlyRate: v.hourlyRate })
+            : await addBooking({ employeeId: v.employeeId, customer: v.customer, project: v.project, workload: v.workload, start: v.start, end: v.end, type: v.type ?? 'billable', hourlyRate: v.hourlyRate });
           err ? toast.error(err) : toast.success(bEdit ? "Booking updated" : "Booking added");
         }}
       />

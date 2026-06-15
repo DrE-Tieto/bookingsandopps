@@ -94,7 +94,8 @@ export function TeamTab() {
         title={empEdit ? "Edit employee" : "New employee"}
         initial={empEdit ? {
           name: empEdit.name, role: empEdit.role, teamId: empEdit.teamId,
-          availableFrom: empEdit.availableFrom, availableUntil: empEdit.availableUntil, active: empEdit.active,
+          availableFrom: empEdit.availableFrom, availableUntil: empEdit.availableUntil,
+          active: empEdit.active, hourlyCost: empEdit.hourlyCost,
         } : undefined}
         onSubmit={async (v: EmployeeFormValue) => {
           if (!v.teamId) { toast.error("Please select a team"); return; }

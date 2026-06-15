@@ -8,9 +8,10 @@ export interface Employee {
   name: string;
   role: string;
   teamId: string;
-  availableFrom?: string;  // ISO date, optional
-  availableUntil?: string; // ISO date, optional
+  availableFrom?: string;
+  availableUntil?: string;
   active: boolean;
+  hourlyCost?: number;
 }
 
 export interface Team {
@@ -35,6 +36,7 @@ export interface Booking {
   end: string;
   type: 'billable' | 'internal' | 'vacation';
   deliveryId?: string;
+  hourlyRate?: number;
 }
 
 export interface OpportunityMember {
@@ -78,10 +80,10 @@ interface Ctx {
   addOpportunityMember: (m: Omit<OpportunityMember, 'id'>) => Promise<string | null>;
   updateOpportunityMember: (m: OpportunityMember) => Promise<string | null>;
   deleteOpportunityMember: (id: string) => Promise<string | null>;
-  addDelivery: (d: Omit<Delivery, 'id'>, members: Array<{employeeId: string; workload: number; start: string; end: string}>) => Promise<string | null>;
-  updateDelivery: (d: Delivery, members: Array<{employeeId: string; workload: number; start: string; end: string}>) => Promise<string | null>;
+  addDelivery: (d: Omit<Delivery, 'id'>, members: Array<{employeeId: string; workload: number; start: string; end: string; hourlyRate?: number}>) => Promise<string | null>;
+  updateDelivery: (d: Delivery, members: Array<{employeeId: string; workload: number; start: string; end: string; hourlyRate?: number}>) => Promise<string | null>;
   deleteDelivery: (id: string) => Promise<string | null>;
-  convertOpportunityToDelivery: (opportunityId: string, d: Omit<Delivery, 'id'>, members: Array<{employeeId: string; workload: number; start: string; end: string}>) => Promise<string | null>;
+  convertOpportunityToDelivery: (opportunityId: string, d: Omit<Delivery, 'id'>, members: Array<{employeeId: string; workload: number; start: string; end: string; hourlyRate?: number}>) => Promise<string | null>;
 }
 
 const DashboardContext = createContext<Ctx | null>(null);
@@ -111,7 +113,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       let q = supabase.from("employees").select("*");
       if (selectedTeamId) q = q.eq("team_id", selectedTeamId);
       const { data } = await q.order("full_name");
-      return (data ?? []).map((e: { id: string; full_name: string; role: string; team_id: string; available_from: string | null; available_until: string | null; active: boolean }) => ({
+      return (data ?? []).map((e: { id: string; full_name: string; role: string; team_id: string; available_from: string | null; available_until: string | null; active: boolean; hourly_cost: number | null }) => ({
         id: e.id,
         name: e.full_name,
         role: e.role,
@@ -119,6 +121,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         availableFrom: e.available_from ?? undefined,
         availableUntil: e.available_until ?? undefined,
         active: e.active,
+        hourlyCost: e.hourly_cost ?? undefined,
       })).sort((a, b) => a.name.localeCompare(b.name));
     },
   });
@@ -139,7 +142,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const { data } = await query;
       return (data ?? []).map((b: {
         id: string; employee_id: string; customer: string; project: string;
-        workload_pct: number; start_date: string; end_date: string; delivery_id?: string | null;
+        workload_pct: number; start_date: string; end_date: string;
+        delivery_id?: string | null; hourly_rate: number | null;
       }) => ({
         id: b.id,
         employeeId: b.employee_id,
@@ -150,6 +154,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         end: b.end_date,
         type: (b.type ?? 'billable') as 'billable' | 'internal' | 'vacation',
         deliveryId: b.delivery_id ?? undefined,
+        hourlyRate: b.hourly_rate ?? undefined,
       }));
     },
   });
@@ -199,7 +204,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const addEmployee = async (e: Omit<Employee, "id">): Promise<string | null> => {
     const { error } = await supabase.from("employees").insert({
       full_name: e.name, role: e.role, team_id: e.teamId,
-      available_from: e.availableFrom ?? null, available_until: e.availableUntil ?? null, active: e.active ?? true,
+      available_from: e.availableFrom ?? null, available_until: e.availableUntil ?? null,
+      active: e.active ?? true, hourly_cost: e.hourlyCost ?? null,
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["employees"] });
     return error?.message ?? null;
@@ -208,7 +214,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const updateEmployee = async (e: Employee): Promise<string | null> => {
     const { error } = await supabase.from("employees").update({
       full_name: e.name, role: e.role,
-      available_from: e.availableFrom ?? null, available_until: e.availableUntil ?? null, active: e.active,
+      available_from: e.availableFrom ?? null, available_until: e.availableUntil ?? null,
+      active: e.active, hourly_cost: e.hourlyCost ?? null,
     }).eq("id", e.id);
     if (!error) queryClient.invalidateQueries({ queryKey: ["employees"] });
     return error?.message ?? null;
@@ -227,7 +234,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const addBooking = async (b: Omit<Booking, "id">): Promise<string | null> => {
     const { error } = await supabase.from("bookings").insert({
       employee_id: b.employeeId, customer: b.customer, project: b.project,
-      workload_pct: b.workload, start_date: b.start, end_date: b.end, type: b.type ?? 'billable',
+      workload_pct: b.workload, start_date: b.start, end_date: b.end,
+      type: b.type ?? 'billable', hourly_rate: b.hourlyRate ?? null,
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["bookings"] });
     return error?.message ?? null;
@@ -236,7 +244,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const updateBooking = async (b: Booking): Promise<string | null> => {
     const { error } = await supabase.from("bookings").update({
       employee_id: b.employeeId, customer: b.customer, project: b.project,
-      workload_pct: b.workload, start_date: b.start, end_date: b.end, type: b.type,
+      workload_pct: b.workload, start_date: b.start, end_date: b.end,
+      type: b.type, hourly_rate: b.hourlyRate ?? null,
     }).eq("id", b.id);
     if (!error) queryClient.invalidateQueries({ queryKey: ["bookings"] });
     return error?.message ?? null;
@@ -314,7 +323,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null;
   };
 
-  const addDelivery = async (d: Omit<Delivery, 'id'>, members: Array<{employeeId: string; workload: number; start: string; end: string}>): Promise<string | null> => {
+  const addDelivery = async (d: Omit<Delivery, 'id'>, members: Array<{employeeId: string; workload: number; start: string; end: string; hourlyRate?: number}>): Promise<string | null> => {
     const { data, error } = await supabase.from('deliveries').insert({ customer: d.customer, project: d.project, type: d.type }).select('id').single();
     if (error || !data) return error?.message ?? 'Failed to create delivery';
     const deliveryId = data.id;
@@ -322,7 +331,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const { error: bErr } = await supabase.from('bookings').insert({
         employee_id: m.employeeId, customer: d.customer, project: d.project,
         workload_pct: m.workload, start_date: m.start, end_date: m.end,
-        type: d.type, delivery_id: deliveryId,
+        type: d.type, delivery_id: deliveryId, hourly_rate: m.hourlyRate ?? null,
       });
       if (bErr) return bErr.message;
     }
@@ -331,7 +340,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
-  const updateDelivery = async (d: Delivery, members: Array<{employeeId: string; workload: number; start: string; end: string}>): Promise<string | null> => {
+  const updateDelivery = async (d: Delivery, members: Array<{employeeId: string; workload: number; start: string; end: string; hourlyRate?: number}>): Promise<string | null> => {
     const { error } = await supabase.from('deliveries').update({ customer: d.customer, project: d.project, type: d.type }).eq('id', d.id);
     if (error) return error.message;
     // Delete all existing member bookings and re-create
@@ -341,7 +350,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const { error: bErr } = await supabase.from('bookings').insert({
         employee_id: m.employeeId, customer: d.customer, project: d.project,
         workload_pct: m.workload, start_date: m.start, end_date: m.end,
-        type: d.type, delivery_id: d.id,
+        type: d.type, delivery_id: d.id, hourly_rate: m.hourlyRate ?? null,
       });
       if (bErr) return bErr.message;
     }

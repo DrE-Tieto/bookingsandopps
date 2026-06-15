@@ -15,6 +15,7 @@ export interface EntryFormValue {
   end: string;
   probability?: number;
   type?: 'billable' | 'internal' | 'vacation';
+  hourlyRate?: number;
 }
 
 interface Props {
@@ -95,6 +96,16 @@ export function EntryDialog({ open, onOpenChange, title, employees, initial, wit
               </div>
             )}
           </div>
+          {!withProbability && (
+            <div className="grid gap-1.5">
+              <Label>Hourly rate <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                type="number" min={0} step={0.01} placeholder="e.g. 150.00"
+                value={v.hourlyRate ?? ""}
+                onChange={(e) => setV({ ...v, hourlyRate: e.target.value ? Number(e.target.value) : undefined })}
+              />
+            </div>
+          )}
           {!withProbability && (
             <div className="grid gap-1.5">
               <Label>Type</Label>
