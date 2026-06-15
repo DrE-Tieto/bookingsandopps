@@ -119,7 +119,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         availableFrom: e.available_from ?? undefined,
         availableUntil: e.available_until ?? undefined,
         active: e.active,
-      }));
+      })).sort((a, b) => a.name.localeCompare(b.name));
     },
   });
 
