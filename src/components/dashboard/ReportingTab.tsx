@@ -192,7 +192,7 @@ function CapacityPipeline({ employees, bookings, opportunities }: {
             {/* Bars */}
             <div className="flex gap-1 items-end" style={{ height: 200 }}>
               {data.map(d => (
-                <div key={d.key} className="flex-1 flex flex-col-reverse" style={{ height: 200 }}>
+                <div key={d.key} className="flex-1 flex flex-col" style={{ height: 200 }}>
                   {/* Unsold (top, red) */}
                   <div
                     className="w-full bg-red-200 dark:bg-red-900/40 transition-all"
