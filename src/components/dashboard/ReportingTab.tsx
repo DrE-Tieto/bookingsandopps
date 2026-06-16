@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { startOfMonth, endOfMonth, subMonths, format, parseISO, isAfter, isBefore, eachDayOfInterval, getDay, max as dmax, min as dmin } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, addMonths, format, parseISO, isAfter, isBefore, eachDayOfInterval, getDay, max as dmax, min as dmin } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useDashboard, type Employee, type Booking } from "@/lib/dashboard-store";
+import { useDashboard, type Employee, type Booking, type Opportunity } from "@/lib/dashboard-store";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -100,8 +100,144 @@ function avgOrNull(vals: (number | null)[]): number | null {
   return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
 }
 
+function buildFutureMonths(count: number) {
+  const today = new Date();
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    const d = addMonths(today, i);
+    result.push({
+      key: format(d, 'yyyy-MM'),
+      label: format(d, 'MMM yy'),
+      start: startOfMonth(d),
+      end: endOfMonth(d),
+    });
+  }
+  return result;
+}
+
+function CapacityPipeline({ employees, bookings, opportunities }: {
+  employees: Employee[];
+  bookings: Booking[];
+  opportunities: Opportunity[];
+}) {
+  const TARGET = 80;
+  const months = useMemo(() => buildFutureMonths(12), []);
+
+  const data = useMemo(() => months.map(({ key, label, start, end }) => {
+    let capacityDays = 0, confirmedDays = 0, forecastDays = 0;
+
+    for (const emp of employees.filter(e => e.active)) {
+      const empStart = emp.availableFrom ? dmax([start, parseISO(emp.availableFrom)]) : start;
+      const empEnd = emp.availableUntil ? dmin([end, parseISO(emp.availableUntil)]) : end;
+      if (empEnd < empStart) continue;
+      const empWd = workingDaysInRange(empStart, empEnd);
+      if (empWd === 0) continue;
+      capacityDays += empWd;
+
+      for (const b of bookings) {
+        if (b.employeeId !== emp.id || b.type === 'vacation') continue;
+        const bs = parseISO(b.start), be = parseISO(b.end);
+        const os = dmax([start, bs]), oe = dmin([end, be]);
+        if (oe < os) continue;
+        const wd = workingDaysInRange(os, oe);
+        if (b.type === 'billable') confirmedDays += wd * (b.workload / 100);
+      }
+
+      for (const opp of opportunities) {
+        const member = opp.members.find(m => m.employeeId === emp.id);
+        if (!member) continue;
+        const os = dmax([start, parseISO(opp.start)]), oe = dmin([end, parseISO(opp.end)]);
+        if (oe < os) continue;
+        const wd = workingDaysInRange(os, oe);
+        forecastDays += wd * (member.workload / 100) * (opp.probability / 100);
+      }
+    }
+
+    if (capacityDays === 0) return { key, label, confirmed: 0, forecast: 0, unsold: 100 };
+    const confirmed = Math.min(100, Math.round((confirmedDays / capacityDays) * 100));
+    const forecast = Math.min(100 - confirmed, Math.round((forecastDays / capacityDays) * 100));
+    const unsold = Math.max(0, 100 - confirmed - forecast);
+    return { key, label, confirmed, forecast, unsold };
+  }), [months, employees, bookings, opportunities]);
+
+  const maxVal = 100;
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-lg font-semibold">Capacity Pipeline</h2>
+        <p className="text-sm text-muted-foreground">Forward-looking utilisation: confirmed bookings + probability-weighted opportunities vs total capacity.</p>
+      </div>
+      <div className="rounded-lg border bg-card p-4">
+        {/* Y-axis labels + bars */}
+        <div className="flex gap-2 items-end">
+          {/* Y-axis */}
+          <div className="flex flex-col justify-between text-xs text-muted-foreground text-right w-8 shrink-0" style={{ height: 200 }}>
+            <span>100%</span>
+            <span>80%</span>
+            <span>60%</span>
+            <span>40%</span>
+            <span>20%</span>
+            <span>0%</span>
+          </div>
+          {/* Chart area */}
+          <div className="relative flex-1">
+            {/* Target line at 80% */}
+            <div
+              className="absolute left-0 right-0 border-t-2 border-dashed border-amber-400 z-10 pointer-events-none"
+              style={{ bottom: `${(TARGET / maxVal) * 200}px` }}
+            >
+              <span className="absolute -top-4 right-0 text-[10px] text-amber-500 font-medium">target {TARGET}%</span>
+            </div>
+            {/* Bars */}
+            <div className="flex gap-1 items-end" style={{ height: 200 }}>
+              {data.map(d => (
+                <div key={d.key} className="flex-1 flex flex-col-reverse" style={{ height: 200 }}>
+                  {/* Unsold (top, red) */}
+                  <div
+                    className="w-full bg-red-200 dark:bg-red-900/40 transition-all"
+                    style={{ height: `${(d.unsold / maxVal) * 200}px` }}
+                    title={`Unsold: ${d.unsold}%`}
+                  />
+                  {/* Forecast (middle, blue) */}
+                  {d.forecast > 0 && (
+                    <div
+                      className="w-full bg-blue-300 dark:bg-blue-700/60 transition-all"
+                      style={{ height: `${(d.forecast / maxVal) * 200}px` }}
+                      title={`Forecast: ${d.forecast}%`}
+                    />
+                  )}
+                  {/* Confirmed (bottom, green) */}
+                  <div
+                    className="w-full bg-emerald-400 dark:bg-emerald-600 transition-all rounded-sm"
+                    style={{ height: `${(d.confirmed / maxVal) * 200}px` }}
+                    title={`Confirmed: ${d.confirmed}%`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* X-axis labels */}
+        <div className="flex gap-1 mt-1 ml-10">
+          {data.map(d => (
+            <div key={d.key} className="flex-1 text-center text-[10px] text-muted-foreground">{d.label}</div>
+          ))}
+        </div>
+        {/* Legend */}
+        <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm bg-emerald-400" />Confirmed</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm bg-blue-300" />Forecast (prob. weighted)</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm bg-red-200" />Unsold capacity</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dashed border-amber-400" />Target {TARGET}%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ReportingTab() {
-  const { employees, bookings, teams } = useDashboard();
+  const { employees, bookings, teams, opportunities } = useDashboard();
   const [rangeMonths, setRangeMonths] = useState(3);
   const [metric, setMetric] = useState<Metric>('billability');
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
@@ -257,6 +393,8 @@ export function ReportingTab() {
             : 'Utilisation: billable + internal bookings ÷ total capacity (vacation excluded)'}
         </div>
       </div>
+
+      <CapacityPipeline employees={employees} bookings={bookings} opportunities={opportunities} />
     </div>
   );
 }
