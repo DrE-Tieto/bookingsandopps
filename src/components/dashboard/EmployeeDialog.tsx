@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
 import { useDashboard } from "@/lib/dashboard-store";
+import { cn } from "@/lib/utils";
 
 export interface EmployeeFormValue {
   name: string;
@@ -15,6 +17,7 @@ export interface EmployeeFormValue {
   availableUntil?: string;
   active: boolean;
   hourlyCost?: number;
+  skills: string[];
 }
 
 interface Props {
@@ -28,18 +31,29 @@ interface Props {
 export function EmployeeDialog({ open, onOpenChange, title, initial, onSubmit }: Props) {
   const { profile } = useAuth();
   const { teams } = useDashboard();
+  const skillInputRef = useRef<HTMLInputElement>(null);
 
   const defaultTeamId = profile?.role === "team_lead" ? (profile.teamId ?? "") : "";
 
-  const [v, setV] = useState<EmployeeFormValue>(
-    initial ?? { name: "", role: "", teamId: defaultTeamId, availableFrom: "", availableUntil: "", active: true, hourlyCost: undefined }
-  );
+  const empty: EmployeeFormValue = { name: "", role: "", teamId: defaultTeamId, availableFrom: "", availableUntil: "", active: true, hourlyCost: undefined, skills: [] };
+  const [v, setV] = useState<EmployeeFormValue>(initial ?? empty);
+  const [skillInput, setSkillInput] = useState("");
 
   useEffect(() => {
     if (open) {
-      setV(initial ?? { name: "", role: "", teamId: defaultTeamId, availableFrom: "", availableUntil: "", active: true, hourlyCost: undefined });
+      setV(initial ?? { ...empty, teamId: defaultTeamId });
+      setSkillInput("");
     }
   }, [open, initial, defaultTeamId]);
+
+  const addSkill = (raw: string) => {
+    const tag = raw.trim().toLowerCase();
+    if (!tag || v.skills.includes(tag)) return;
+    setV({ ...v, skills: [...v.skills, tag] });
+    setSkillInput("");
+  };
+
+  const removeSkill = (tag: string) => setV({ ...v, skills: v.skills.filter(s => s !== tag) });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -102,6 +116,40 @@ export function EmployeeDialog({ open, onOpenChange, title, initial, onSubmit }:
               value={v.hourlyCost ?? ""}
               onChange={(e) => setV({ ...v, hourlyCost: e.target.value ? Number(e.target.value) : undefined })}
             />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Skills <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            {v.skills.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-1">
+                {v.skills.map(tag => (
+                  <span key={tag} className="inline-flex items-center gap-1 rounded-full border bg-muted px-2.5 py-0.5 text-xs font-medium">
+                    {tag}
+                    <button type="button" onClick={() => removeSkill(tag)} className="text-muted-foreground hover:text-foreground">
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                ref={skillInputRef}
+                placeholder="e.g. Python, Azure, ML…"
+                value={skillInput}
+                onChange={e => setSkillInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addSkill(skillInput);
+                  }
+                }}
+                className={cn("flex-1")}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => addSkill(skillInput)} disabled={!skillInput.trim()}>
+                Add
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Press Enter or comma to add a tag.</p>
           </div>
         </div>
         <DialogFooter>

@@ -12,7 +12,7 @@ export function TeamTab() {
   const [empOpen, setEmpOpen] = useState(false);
   const [empEdit, setEmpEdit] = useState<{
     id: string; name: string; role: string; teamId: string;
-    availableFrom?: string; availableUntil?: string; active: boolean;
+    availableFrom?: string; availableUntil?: string; active: boolean; hourlyCost?: number; skills: string[];
   } | null>(null);
 
   return (
@@ -95,7 +95,7 @@ export function TeamTab() {
         initial={empEdit ? {
           name: empEdit.name, role: empEdit.role, teamId: empEdit.teamId,
           availableFrom: empEdit.availableFrom, availableUntil: empEdit.availableUntil,
-          active: empEdit.active, hourlyCost: empEdit.hourlyCost,
+          active: empEdit.active, hourlyCost: empEdit.hourlyCost, skills: empEdit.skills,
         } : undefined}
         onSubmit={async (v: EmployeeFormValue) => {
           if (!v.teamId) { toast.error("Please select a team"); return; }

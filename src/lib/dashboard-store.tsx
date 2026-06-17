@@ -12,6 +12,7 @@ export interface Employee {
   availableUntil?: string;
   active: boolean;
   hourlyCost?: number;
+  skills: string[];
 }
 
 export interface Team {
@@ -122,6 +123,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         availableUntil: e.available_until ?? undefined,
         active: e.active,
         hourlyCost: e.hourly_cost ?? undefined,
+        skills: e.skills ?? [],
       })).sort((a, b) => a.name.localeCompare(b.name));
     },
   });
@@ -205,7 +207,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from("employees").insert({
       full_name: e.name, role: e.role, team_id: e.teamId,
       available_from: e.availableFrom ?? null, available_until: e.availableUntil ?? null,
-      active: e.active ?? true, hourly_cost: e.hourlyCost ?? null,
+      active: e.active ?? true, hourly_cost: e.hourlyCost ?? null, skills: e.skills ?? [],
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["employees"] });
     return error?.message ?? null;
@@ -215,7 +217,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from("employees").update({
       full_name: e.name, role: e.role,
       available_from: e.availableFrom ?? null, available_until: e.availableUntil ?? null,
-      active: e.active, hourly_cost: e.hourlyCost ?? null,
+      active: e.active, hourly_cost: e.hourlyCost ?? null, skills: e.skills ?? [],
     }).eq("id", e.id);
     if (!error) queryClient.invalidateQueries({ queryKey: ["employees"] });
     return error?.message ?? null;
