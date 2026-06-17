@@ -84,7 +84,7 @@ function SkillsBubble({ employees, bookings }: {
         <span className="text-xs text-muted-foreground">Average free capacity per skill over the next 4 weeks</span>
       </div>
       <div className="flex flex-wrap gap-4 items-end justify-start">
-        {skillData.map(({ skill, count, avgAvail }) => {
+        {skillData.map(({ skill, count, fteFree }) => {
           const minSize = 48, maxSize = 96;
           const size = minSize + Math.round(((count - 1) / Math.max(maxCount - 1, 1)) * (maxSize - minSize));
           const colorClass = fteFree >= 0.5
