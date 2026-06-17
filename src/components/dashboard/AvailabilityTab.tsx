@@ -68,7 +68,7 @@ function SkillsBubble({ employees, bookings }: {
       .map(([skill, { count, totalBooked }]) => ({
         skill,
         count,
-        avgAvail: Math.round(totalBooked / count),
+        fteFree: Math.round((totalBooked / 100) * 10) / 10,
       }))
       .sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
   }, [employees, bookings]);
@@ -87,9 +87,9 @@ function SkillsBubble({ employees, bookings }: {
         {skillData.map(({ skill, count, avgAvail }) => {
           const minSize = 48, maxSize = 96;
           const size = minSize + Math.round(((count - 1) / Math.max(maxCount - 1, 1)) * (maxSize - minSize));
-          const colorClass = avgAvail >= 50
+          const colorClass = fteFree >= 0.5
             ? "bg-emerald-500/20 border-emerald-400 text-emerald-700 dark:text-emerald-300"
-            : avgAvail >= 20
+            : fteFree >= 0.2
             ? "bg-amber-500/20 border-amber-400 text-amber-700 dark:text-amber-300"
             : "bg-red-500/20 border-red-400 text-red-700 dark:text-red-300";
           return (
@@ -98,7 +98,7 @@ function SkillsBubble({ employees, bookings }: {
                 className={cn("rounded-full border-2 flex flex-col items-center justify-center gap-0 shrink-0", colorClass)}
                 style={{ width: size, height: size }}
               >
-                <span className="text-xs font-bold leading-tight">{avgAvail}%</span>
+                <span className="text-xs font-bold leading-tight">{fteFree} FTE</span>
                 <span className="text-[10px] leading-tight text-muted-foreground">{count}p</span>
               </div>
               <span className="text-[10px] text-muted-foreground text-center leading-tight" style={{ maxWidth: size + 8 }}>
@@ -109,9 +109,9 @@ function SkillsBubble({ employees, bookings }: {
         })}
       </div>
       <div className="flex gap-4 mt-3 text-[10px] text-muted-foreground">
-        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500/30 border border-emerald-400" />≥50% free</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500/30 border border-amber-400" />20–49% free</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500/30 border border-red-400" />&lt;20% free</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500/30 border border-emerald-400" />≥0.5 FTE free</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500/30 border border-amber-400" />0.2–0.5 FTE</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500/30 border border-red-400" />&lt;0.2 FTE free</span>
         <span className="ml-2">Circle size = headcount</span>
       </div>
     </div>
