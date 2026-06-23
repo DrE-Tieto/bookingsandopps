@@ -75,44 +75,36 @@ function SkillsBubble({ employees, bookings }: {
 
   if (skillData.length === 0) return null;
 
-  const maxCount = Math.max(...skillData.map(s => s.count));
+  const maxFte = Math.max(...skillData.map(s => s.fteFree), 0.1);
+  const sorted = [...skillData].sort((a, b) => b.fteFree - a.fteFree);
 
   return (
     <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-baseline gap-2 mb-4">
+      <div className="flex items-baseline gap-2 mb-3">
         <span className="text-sm font-semibold">Skills — right now</span>
-        <span className="text-xs text-muted-foreground">Average free capacity per skill over the next 4 weeks</span>
+        <span className="text-xs text-muted-foreground">Free capacity per skill, next 4 weeks</span>
       </div>
-      <div className="flex flex-wrap gap-4 items-end justify-start">
-        {skillData.map(({ skill, count, fteFree }) => {
-          const minSize = 48, maxSize = 96;
-          const size = minSize + Math.round(((count - 1) / Math.max(maxCount - 1, 1)) * (maxSize - minSize));
-          const colorClass = fteFree >= 0.5
-            ? "bg-emerald-500/20 border-emerald-400 text-emerald-700 dark:text-emerald-300"
+      <div className="space-y-2">
+        {sorted.map(({ skill, count, fteFree }) => {
+          const barPct = (fteFree / maxFte) * 100;
+          const barColor = fteFree >= 0.5
+            ? "bg-emerald-500/60"
             : fteFree >= 0.2
-            ? "bg-amber-500/20 border-amber-400 text-amber-700 dark:text-amber-300"
-            : "bg-red-500/20 border-red-400 text-red-700 dark:text-red-300";
+            ? "bg-amber-500/60"
+            : "bg-red-500/60";
           return (
-            <div key={skill} className="flex flex-col items-center gap-1.5">
-              <div
-                className={cn("rounded-full border-2 flex flex-col items-center justify-center gap-0 shrink-0", colorClass)}
-                style={{ width: size, height: size }}
-              >
-                <span className="text-xs font-bold leading-tight">{fteFree} FTE</span>
-                <span className="text-[10px] leading-tight text-muted-foreground">{count}p</span>
+            <div key={skill} className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground w-28 shrink-0 truncate text-right">{skill}</span>
+              <div className="flex-1 h-6 bg-muted/40 rounded overflow-hidden relative">
+                <div className={cn("h-full rounded transition-all", barColor)} style={{ width: `${barPct}%` }} />
               </div>
-              <span className="text-[10px] text-muted-foreground text-center leading-tight" style={{ maxWidth: size + 8 }}>
-                {skill}
-              </span>
+              <div className="text-xs font-semibold w-16 shrink-0">
+                {fteFree} FTE
+                <span className="font-normal text-muted-foreground ml-1">· {count}p</span>
+              </div>
             </div>
           );
         })}
-      </div>
-      <div className="flex gap-4 mt-3 text-[10px] text-muted-foreground">
-        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500/30 border border-emerald-400" />≥0.5 FTE free</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500/30 border border-amber-400" />0.2–0.5 FTE</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500/30 border border-red-400" />&lt;0.2 FTE free</span>
-        <span className="ml-2">Circle size = headcount</span>
       </div>
     </div>
   );
